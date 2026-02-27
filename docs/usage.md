@@ -77,7 +77,7 @@ verse-generate --collection hanuman-chalisa --verse 1
 - 🎨 Image: `images/hanuman-chalisa/modern-minimalist/verse-01.png`
 - 🎵 Audio (full): `audio/hanuman-chalisa/verse-01-full.mp3`
 - 🎵 Audio (slow): `audio/hanuman-chalisa/verse-01-slow.mp3`
-- 🔍 Embeddings: `data/embeddings.json`
+- 🔍 Embeddings: `data/embeddings/collections/{collection}.json` + `data/embeddings/collections/index.json`
 
 ---
 
@@ -173,7 +173,10 @@ your-project/
 │   │       ├── modern-minimalist.yml
 │   │       ├── kids-friendly.yml
 │   │       └── ...
-│   └── embeddings.json                   # Search embeddings (all collections)
+│   └── embeddings/
+│       └── collections/
+│           ├── index.json               # Manifest
+│           └── <collection>.json        # Per-collection embeddings
 ├── images/
 │   └── <collection-key>/                 # Generated images by collection and theme
 │       ├── <theme-name>/
@@ -297,7 +300,7 @@ verse-generate --collection bhagavad-gita --verse chapter-02-shloka-47
 - 🎨 Image: `images/bhagavad-gita/modern-minimalist/chapter-02-shloka-47.png`
 - 🎵 Audio (full): `audio/bhagavad-gita/chapter-02-shloka-47-full.mp3`
 - 🎵 Audio (slow): `audio/bhagavad-gita/chapter-02-shloka-47-slow.mp3`
-- 🔍 Embeddings: Updates `data/embeddings.json`
+- 🔍 Embeddings: Updates `data/embeddings/collections/` + manifest
 
 ### Why This Workflow?
 
@@ -776,7 +779,7 @@ verse-generate --show-structure
 # Generated content
 images/
 audio/
-data/embeddings.json
+data/embeddings/collections/index.json
 
 # Environment
 .env

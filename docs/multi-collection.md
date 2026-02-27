@@ -21,7 +21,7 @@ verse-embeddings --multi-collection --collections-file ./collections.yml
 ## Features
 
 - Process multiple collections in one command
-- Unified embeddings output with collection metadata
+- Per-collection embeddings output with manifest
 - Uses permalinks from verse frontmatter
 - Backward compatible with single-collection mode
 - Enable/disable collections via YAML
@@ -31,8 +31,7 @@ verse-embeddings --multi-collection --collections-file ./collections.yml
 ### Single Collection (Default)
 
 ```bash
-verse-embeddings --provider openai
-verse-embeddings --verses-dir ./_verses --output ./embeddings.json
+verse-embeddings --provider openai --collection hanuman-chalisa --collections-file ./_data/collections.yml
 ```
 
 ### Multi-Collection
@@ -73,7 +72,11 @@ project/
 │   └── collection-2/
 │       └── ...
 └── data/
-    └── embeddings.json
+    └── embeddings/
+        └── collections/
+            ├── index.json
+            ├── collection-1.json
+            └── collection-2.json
 ```
 
 ### Verse Frontmatter
@@ -116,10 +119,10 @@ Each verse includes collection metadata:
 
 ```bash
 # Count verses per collection
-cat data/embeddings.json | jq '[.verses.en[] | .metadata.collection_key] | group_by(.) | map({collection: .[0], count: length})'
+cat data/embeddings/collections/index.json | jq '.collections | map({collection, count: .counts.total})'
 
-# View sample verses
-cat data/embeddings.json | jq '.verses.en[] | {title, collection: .metadata.collection_key}' | head -10
+# View sample verses for a collection
+cat data/embeddings/collections/collection-1.json | jq '.verses.en[] | {title, collection: .collection}' | head -10
 ```
 
 ## Migration from Single Collection
@@ -129,4 +132,4 @@ cat data/embeddings.json | jq '.verses.en[] | {title, collection: .metadata.coll
 3. Add `permalink` fields to verse frontmatter
 4. Run with `--multi-collection --collections-file ./collections.yml`
 
-Single-collection workflows continue to work without changes.
+Single-collection workflows use `--collection <key> --collections-file ./collections.yml`.

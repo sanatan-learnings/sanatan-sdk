@@ -78,9 +78,11 @@ Each verse generation creates:
 - 🎨 **Image**: `images/{collection}/{theme}/verse-01.png` (DALL-E 3)
 - 🎵 **Audio (full)**: `audio/{collection}/verse-01-full.mp3` (ElevenLabs)
 - 🎵 **Audio (slow)**: `audio/{collection}/verse-01-slow.mp3` (0.75x speed)
-- 🔍 **Embeddings**: `data/embeddings.json` (for semantic search)
+- 🔍 **Embeddings**: `data/embeddings/collections/{collection}.json` + `data/embeddings/collections/index.json` (for semantic search)
 
 **Text Source**: Canonical Devanagari text from `data/verses/{collection}.yaml` ([Local Verses Guide](docs/local-verses.md))
+
+**Migration Note**: Legacy combined embeddings (`data/embeddings.json`) are no longer written by default. Use `verse-embeddings --legacy-output` if you still need the combined file.
 
 ## Puranic Context Generation
 

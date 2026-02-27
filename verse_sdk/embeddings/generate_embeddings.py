@@ -11,11 +11,12 @@ Usage as library:
     generate_embeddings(verses_dir, output_file, provider='openai')
 
 Usage as script:
-    python -m verse_sdk.embeddings.generate_embeddings --provider openai
-    python -m verse_sdk.embeddings.generate_embeddings --provider huggingface
+    python -m verse_sdk.embeddings.generate_embeddings --collection hanuman-chalisa --collections-file ./_data/collections.yml
+    python -m verse_sdk.embeddings.generate_embeddings --multi-collection --collections-file ./_data/collections.yml
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -386,7 +387,7 @@ def process_verse_file(file_path, embed_func, client_or_model, config, collectio
     return result
 
 
-def process_single_collection(verses_dir, embed_func, client_or_model, config):
+def process_single_collection(verses_dir, embed_func, client_or_model, config, collection_metadata=None):
     """Process verses from a single directory (backward compatibility mode)."""
     # Check verses directory
     if not verses_dir.exists():
@@ -403,7 +404,10 @@ def process_single_collection(verses_dir, embed_func, client_or_model, config):
     verses_hi = []
 
     for verse_file in verse_files:
-        result = process_verse_file(verse_file, embed_func, client_or_model, config)
+        result = process_verse_file(
+            verse_file, embed_func, client_or_model, config,
+            collection_metadata=collection_metadata
+        )
         if result:
             verses_en.append(result['en'])
             verses_hi.append(result['hi'])
@@ -432,8 +436,7 @@ def process_multi_collection(collections_file, base_verses_dir, embed_func, clie
     print()
 
     # Process each collection
-    all_verses_en = []
-    all_verses_hi = []
+    outputs = []
 
     for coll_key, coll_info in enabled_collections.items():
         print("=" * 70)
@@ -450,32 +453,92 @@ def process_multi_collection(collections_file, base_verses_dir, embed_func, clie
             print()
             continue
 
-        # Find verse files
-        verse_files = sorted(verses_dir.glob("*.md"))
-        print(f"Found {len(verse_files)} verse files in {subdirectory}/")
-        print()
-
         # Prepare collection metadata
         collection_metadata = {
             'key': coll_key,
             'name': coll_info.get('name_en', coll_key)
         }
 
-        # Process verses
-        for verse_file in verse_files:
-            result = process_verse_file(
-                verse_file, embed_func, client_or_model, config,
-                collection_metadata=collection_metadata
-            )
-            if result:
-                all_verses_en.append(result['en'])
-                all_verses_hi.append(result['hi'])
-            print()
+        verses_en, verses_hi = process_single_collection(
+            verses_dir, embed_func, client_or_model, config,
+            collection_metadata=collection_metadata
+        )
+
+        outputs.append({
+            'collection': coll_key,
+            'collection_name': collection_metadata['name'],
+            'verses_en': verses_en,
+            'verses_hi': verses_hi
+        })
 
         print(f"Completed collection: {coll_key}")
         print()
 
-    return all_verses_en, all_verses_hi
+    return outputs
+
+
+def build_collection_output(collection_key, provider_name, config, verses_en, verses_hi, collection_name=None):
+    output = {
+        'collection': collection_key,
+        'model': config['model'],
+        'dimensions': config['dimensions'],
+        'provider': provider_name,
+        'generated_at': datetime.now().isoformat(),
+        'verses': {
+            'en': verses_en,
+            'hi': verses_hi
+        }
+    }
+    if collection_name:
+        output['collection_name'] = collection_name
+    return output
+
+
+def write_json_file(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
+
+def compute_sha256(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(8192), b''):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def write_collection_file(output_dir: Path, collection_key: str, payload: dict) -> dict:
+    output_path = output_dir / f"{collection_key}.json"
+    write_json_file(output_path, payload)
+    checksum = compute_sha256(output_path)
+    counts = {
+        'en': len(payload.get('verses', {}).get('en', [])),
+        'hi': len(payload.get('verses', {}).get('hi', []))
+    }
+    return {
+        'collection': collection_key,
+        'path': output_path.name,
+        'counts': {
+            **counts,
+            'total': counts['en']
+        },
+        'checksum': checksum,
+        'model': payload.get('model'),
+        'dimensions': payload.get('dimensions'),
+        'provider': payload.get('provider'),
+        'generated_at': payload.get('generated_at')
+    }
+
+
+def write_manifest(output_dir: Path, entries: list) -> Path:
+    manifest = {
+        'generated_at': datetime.now().isoformat(),
+        'collections': entries
+    }
+    manifest_path = output_dir / "index.json"
+    write_json_file(manifest_path, manifest)
+    return manifest_path
 
 
 def main():
@@ -487,12 +550,14 @@ def main():
         epilog="""
 Examples:
   # Single collection mode (backward compatible)
-  python generate_embeddings.py --provider openai
-  python generate_embeddings.py --verses-dir ./_verses --output ./data/embeddings.json
+  python generate_embeddings.py --collection hanuman-chalisa --collections-file ./_data/collections.yml
 
   # Multi-collection mode
   python generate_embeddings.py --multi-collection --collections-file ./_data/collections.yml
   python generate_embeddings.py --multi-collection --collections-file ./collections.yml --provider huggingface
+
+  # Legacy combined output (opt-in)
+  python generate_embeddings.py --multi-collection --collections-file ./_data/collections.yml --legacy-output
         """
     )
     parser.add_argument(
@@ -510,8 +575,19 @@ Examples:
     parser.add_argument(
         '--output',
         type=Path,
-        default=Path.cwd() / "data" / "embeddings.json",
-        help='Output file path (default: ./data/embeddings.json)'
+        default=None,
+        help='Legacy combined output file path (requires --legacy-output)'
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=Path,
+        default=Path.cwd() / "data" / "embeddings" / "collections",
+        help='Output directory for per-collection embeddings (default: ./data/embeddings/collections)'
+    )
+    parser.add_argument(
+        '--collection',
+        type=str,
+        help='Collection key to process (single collection mode)'
     )
     parser.add_argument(
         '--multi-collection',
@@ -523,11 +599,19 @@ Examples:
         type=Path,
         help='Path to collections.yml file (required for multi-collection mode)'
     )
+    parser.add_argument(
+        '--legacy-output',
+        action='store_true',
+        help='Write legacy combined embeddings output (opt-in)'
+    )
 
     args = parser.parse_args()
     provider_name = args.provider
     verses_dir = args.verses_dir
     output_file = args.output
+    output_dir = args.output_dir
+    collection_key = args.collection
+    legacy_output = args.legacy_output
     multi_collection = args.multi_collection
     collections_file = args.collections_file
 
@@ -535,6 +619,9 @@ Examples:
     if multi_collection and not collections_file:
         print("Error: --collections-file is required when using --multi-collection")
         sys.exit(1)
+    if output_file and not legacy_output:
+        print("Warning: --output implies legacy output. Use --legacy-output explicitly.")
+        legacy_output = True
 
     print("=" * 70)
     print("Verse Embeddings Generator")
@@ -554,51 +641,105 @@ Examples:
     else:
         print("Mode: Single collection")
         print(f"Verses directory: {verses_dir}")
+        if collection_key:
+            print(f"Collection key: {collection_key}")
 
-    print(f"Output file: {output_file}")
+    print(f"Output dir: {output_dir}")
+    if legacy_output:
+        print(f"Legacy output file: {output_file or (Path.cwd() / 'data' / 'embeddings.json')}")
     print()
 
     # Process verses
     if multi_collection:
-        verses_en, verses_hi = process_multi_collection(
+        collection_outputs = process_multi_collection(
             collections_file, verses_dir, embed_func, client_or_model, config
         )
     else:
-        verses_en, verses_hi = process_single_collection(
-            verses_dir, embed_func, client_or_model, config
-        )
+        collection_name = None
+        if collections_file and collection_key:
+            collections_config = load_collections_config(collections_file)
+            collection_info = collections_config.get(collection_key, {})
+            if not collection_info:
+                print(f"Error: Collection '{collection_key}' not found in {collections_file}")
+                sys.exit(1)
+            collection_name = collection_info.get('name_en', collection_key)
+            subdirectory = collection_info.get('subdirectory', collection_key)
+            verses_dir = verses_dir / subdirectory
+        elif collection_key:
+            if verses_dir.name != collection_key:
+                candidate_dir = verses_dir / collection_key
+                if candidate_dir.exists():
+                    verses_dir = candidate_dir
+        else:
+            if verses_dir.name != "_verses":
+                collection_key = verses_dir.name
+                collection_name = collection_key
 
-    # Build output structure
-    output = {
-        'model': config['model'],
-        'dimensions': config['dimensions'],
-        'provider': provider_name,
-        'generated_at': datetime.now().isoformat(),
-        'verses': {
-            'en': verses_en,
-            'hi': verses_hi
+        if not collection_key:
+            print("Error: --collection is required for per-collection output")
+            sys.exit(1)
+
+        collection_metadata = {
+            'key': collection_key,
+            'name': collection_name or collection_key
         }
-    }
+        verses_en, verses_hi = process_single_collection(
+            verses_dir, embed_func, client_or_model, config,
+            collection_metadata=collection_metadata
+        )
+        collection_outputs = [{
+            'collection': collection_key,
+            'collection_name': collection_metadata['name'],
+            'verses_en': verses_en,
+            'verses_hi': verses_hi
+        }]
 
-    # Ensure output directory exists
-    output_file.parent.mkdir(parents=True, exist_ok=True)
+    manifest_entries = []
+    for output_item in collection_outputs:
+        payload = build_collection_output(
+            output_item['collection'],
+            provider_name,
+            config,
+            output_item['verses_en'],
+            output_item['verses_hi'],
+            collection_name=output_item.get('collection_name')
+        )
+        entry = write_collection_file(output_dir, output_item['collection'], payload)
+        manifest_entries.append(entry)
 
-    # Write to file
-    print(f"Writing embeddings to {output_file}...")
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(output, f, ensure_ascii=False, indent=2)
+    manifest_path = write_manifest(output_dir, manifest_entries)
+
+    if legacy_output:
+        if output_file is None:
+            output_file = Path.cwd() / "data" / "embeddings.json"
+        output = {
+            'model': config['model'],
+            'dimensions': config['dimensions'],
+            'provider': provider_name,
+            'generated_at': datetime.now().isoformat(),
+            'verses': {
+                'en': [v for item in collection_outputs for v in item['verses_en']],
+                'hi': [v for item in collection_outputs for v in item['verses_hi']]
+            }
+        }
+        print(f"Writing legacy embeddings to {output_file}...")
+        write_json_file(output_file, output)
 
     print()
     print("=" * 70)
     print("Generation Complete!")
     print("=" * 70)
-    print(f"Total verses processed: {len(verses_en)}")
-    print(f"English embeddings: {len(verses_en)}")
-    print(f"Hindi embeddings: {len(verses_hi)}")
-    print(f"Output file size: {output_file.stat().st_size / 1024:.1f} KB")
+    total_en = sum(len(item['verses_en']) for item in collection_outputs)
+    total_hi = sum(len(item['verses_hi']) for item in collection_outputs)
+    print(f"Total verses processed: {total_en}")
+    print(f"English embeddings: {total_en}")
+    print(f"Hindi embeddings: {total_hi}")
+    print(f"Manifest: {manifest_path}")
+    if legacy_output and output_file:
+        print(f"Legacy output size: {output_file.stat().st_size / 1024:.1f} KB")
 
     # Calculate approximate cost
-    total_embeddings = len(verses_en) + len(verses_hi)
+    total_embeddings = total_en + total_hi
     if config['cost_per_1m'] > 0:
         approx_tokens = total_embeddings * 750  # Rough estimate
         cost = (approx_tokens / 1_000_000) * config['cost_per_1m']

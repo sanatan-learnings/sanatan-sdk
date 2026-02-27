@@ -2037,13 +2037,12 @@ def update_embeddings(collection: str) -> bool:
     # Run verse-embeddings command
     verse_embeddings_cmd = find_command("verse-embeddings")
 
-    # Use multi-collection mode to update all collections
     cmd = [
         verse_embeddings_cmd,
-        "--multi-collection",
+        "--collection", collection,
         "--collections-file", str(collections_file),
         "--verses-dir", "_verses",
-        "--output", "data/embeddings.json"
+        "--output-dir", "data/embeddings/collections"
     ]
 
     print(f"\nRunning: {' '.join(cmd)}\n")
@@ -2051,7 +2050,7 @@ def update_embeddings(collection: str) -> bool:
     try:
         result = subprocess.run(cmd, check=True)
         print("\n✓ Embeddings updated successfully")
-        print("✓ Output: data/embeddings.json")
+        print("✓ Output: data/embeddings/collections")
         return True
     except subprocess.CalledProcessError as e:
         print(f"\n✗ Error updating embeddings: {e}")

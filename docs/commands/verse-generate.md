@@ -107,7 +107,7 @@ verse-generate --collection sundar-kaand --verse 5-20 --theme kids-friendly
 
 # Generate range, then update embeddings once at the end
 verse-generate --collection hanuman-chalisa --verse 1-10
-verse-embeddings --multi-collection --collections-file _data/collections.yml --verses-dir _verses --output data/embeddings.json
+verse-embeddings --multi-collection --collections-file _data/collections.yml --verses-dir _verses
 
 # Generate range with content regeneration
 verse-generate --collection sundar-kaand --verse 1-5 --regenerate-content
@@ -129,7 +129,7 @@ verse-generate --collection hanuman-chalisa --verse 15 --embeddings
 
 # Or run verse-embeddings once after batch generation (recommended)
 verse-embeddings --multi-collection --collections-file _data/collections.yml \
-  --verses-dir _verses --output data/embeddings.json
+  --verses-dir _verses
 ```
 
 ### Custom Theme

@@ -319,8 +319,8 @@ The audio generation uses ElevenLabs. Key files:
 Vector embeddings for semantic search. Key files:
 - `verse_sdk/embeddings/generate_embeddings.py` - Multi-collection support
 - `verse_sdk/embeddings/local_embeddings.py` - Local embeddings (no API)
-- Uses OpenAI's text-embedding-ada-002 model
-- Output: `data/embeddings.json`
+- Uses OpenAI's text-embedding-3-small model
+- Output: `data/embeddings/collections/{collection}.json` + `data/embeddings/collections/index.json`
 
 ## Building and Publishing
 

@@ -5,11 +5,14 @@ Generate vector embeddings for semantic search and RAG (Retrieval Augmented Gene
 ## Synopsis
 
 ```bash
-# Single collection mode
-verse-embeddings --verses-dir PATH --output PATH [OPTIONS]
+# Single collection mode (canonical output)
+verse-embeddings --collection <key> --collections-file PATH [OPTIONS]
 
-# Multi-collection mode
+# Multi-collection mode (canonical output)
 verse-embeddings --multi-collection --collections-file PATH [OPTIONS]
+
+# Legacy combined output (opt-in)
+verse-embeddings --multi-collection --collections-file PATH --legacy-output [--output PATH]
 ```
 
 ## Description
@@ -17,6 +20,8 @@ verse-embeddings --multi-collection --collections-file PATH [OPTIONS]
 The `verse-embeddings` command generates vector embeddings for verses, enabling semantic search and AI-powered guidance features. It supports:
 - **Single collection mode**: Process one collection at a time
 - **Multi-collection mode**: Process multiple collections at once
+- **Canonical per-collection output**: `data/embeddings/collections/{collection}.json` + manifest
+- **Legacy combined output** (opt-in): `data/embeddings.json`
 - **OpenAI provider** (recommended): Higher quality, requires API key
 - **HuggingFace provider** (free): Local models, no API key needed
 
@@ -24,19 +29,23 @@ The `verse-embeddings` command generates vector embeddings for verses, enabling 
 
 ### Single Collection Mode
 
-- `--verses-dir PATH` - Path to verses directory (e.g., `_verses/`)
-- `--output PATH` - Output JSON file path (e.g., `data/embeddings.json`)
+- `--collection KEY` - Collection key to process (e.g., `hanuman-chalisa`)
+- `--collections-file PATH` - Path to collections.yml file (used to locate subdirectory)
+- `--verses-dir PATH` - Base verses directory (default: `_verses/`)
 
 ### Multi-Collection Mode
 
 - `--multi-collection` - Enable multi-collection processing
 - `--collections-file PATH` - Path to collections.yml file (default: `_data/collections.yml`)
-- `--output PATH` - Output JSON file path (default: `data/embeddings.json`)
+- `--verses-dir PATH` - Base verses directory (default: `_verses/`)
 
 ### Common Options
 
-- `--provider PROVIDER` - Embedding provider: `openai` or `huggingface` (default: `openai`)
+- `--provider PROVIDER` - Embedding provider: `openai`, `bedrock-cohere`, or `huggingface` (default: `openai`)
 - `--model MODEL` - Model to use (provider-specific)
+- `--output-dir PATH` - Output directory for canonical per-collection files (default: `data/embeddings/collections`)
+- `--legacy-output` - Write legacy combined output (opt-in)
+- `--output PATH` - Legacy combined output file path (used with `--legacy-output`)
 
 ## Examples
 
@@ -52,7 +61,7 @@ verse-embeddings --multi-collection --collections-file _data/collections.yml
 verse-embeddings --multi-collection --collections-file _data/collections.yml --provider huggingface
 ```
 
-This processes all collections with `enabled: true` in `collections.yml` and creates a unified embeddings file at `data/embeddings.json`.
+This processes all collections with `enabled: true` in `collections.yml` and creates per-collection embeddings under `data/embeddings/collections/` plus a manifest `data/embeddings/collections/index.json`.
 
 ### Single Collection Mode
 
@@ -60,10 +69,16 @@ Process one collection at a time:
 
 ```bash
 # Using OpenAI (recommended)
-verse-embeddings --verses-dir _verses/hanuman-chalisa --output data/embeddings.json
+verse-embeddings --collection hanuman-chalisa --collections-file _data/collections.yml
 
 # Using HuggingFace (free)
-verse-embeddings --verses-dir _verses/hanuman-chalisa --output data/embeddings.json --provider huggingface
+verse-embeddings --collection hanuman-chalisa --collections-file _data/collections.yml --provider huggingface
+
+### Legacy Combined Output (Opt-in)
+
+```bash
+verse-embeddings --multi-collection --collections-file _data/collections.yml --legacy-output
+```
 ```
 
 ### Provider Comparison
@@ -81,57 +96,67 @@ verse-embeddings --verses-dir _verses/hanuman-chalisa --output data/embeddings.j
 
 ## Generated Output
 
-Creates a JSON file with embeddings for all verses:
+### Per-Collection File (Canonical)
 
-### Multi-Collection Output
+`data/embeddings/collections/{collection}.json`:
 
 ```json
 {
-  "embeddings": [
-    {
-      "collection": "hanuman-chalisa",
-      "verse_id": "verse_01",
-      "text": "Combined verse text...",
-      "embedding": [0.123, -0.456, ...]
-    },
-    {
-      "collection": "sundar-kaand",
-      "verse_id": "chaupai_01",
-      "text": "Combined verse text...",
-      "embedding": [0.123, -0.456, ...]
-    },
-    ...
-  ],
-  "metadata": {
-    "total_verses": 150,
-    "collections": ["hanuman-chalisa", "sundar-kaand"],
-    "provider": "openai",
-    "model": "text-embedding-3-small",
-    "dimensions": 1536,
-    "generated_at": "2024-01-15T10:30:00Z"
+  "collection": "hanuman-chalisa",
+  "model": "text-embedding-3-small",
+  "dimensions": 1536,
+  "provider": "openai",
+  "generated_at": "2024-01-15T10:30:00Z",
+  "verses": {
+    "en": [
+      {
+        "verse_number": 1,
+        "title": "Shri Guru Charan Saroj Raj",
+        "url": "/verses/verse-01/",
+        "embedding": [0.123, -0.456, ...],
+        "metadata": {
+          "devanagari": "...",
+          "transliteration": "...",
+          "literal_translation": "..."
+        }
+      }
+    ],
+    "hi": [
+      {
+        "verse_number": 1,
+        "title": "श्री गुरु चरण सरोज रज",
+        "url": "/verses/verse-01/",
+        "embedding": [0.123, -0.456, ...],
+        "metadata": {
+          "devanagari": "...",
+          "transliteration": "...",
+          "literal_translation": "..."
+        }
+      }
+    ]
   }
 }
 ```
 
-### Single Collection Output
+### Manifest
+
+`data/embeddings/collections/index.json`:
 
 ```json
 {
-  "embeddings": [
+  "generated_at": "2024-01-15T10:30:00Z",
+  "collections": [
     {
-      "verse_id": "verse_01",
-      "text": "Combined verse text...",
-      "embedding": [0.123, -0.456, ...]
-    },
-    ...
-  ],
-  "metadata": {
-    "total_verses": 40,
-    "provider": "openai",
-    "model": "text-embedding-3-small",
-    "dimensions": 1536,
-    "generated_at": "2024-01-15T10:30:00Z"
-  }
+      "collection": "hanuman-chalisa",
+      "path": "hanuman-chalisa.json",
+      "counts": { "en": 43, "hi": 43, "total": 43 },
+      "checksum": "sha256...",
+      "provider": "openai",
+      "model": "text-embedding-3-small",
+      "dimensions": 1536,
+      "generated_at": "2024-01-15T10:30:00Z"
+    }
+  ]
 }
 ```
 
@@ -161,8 +186,8 @@ cat _data/collections.yml
 verse-embeddings --multi-collection --collections-file _data/collections.yml
 
 # 3. Verify output
-ls -lh data/embeddings.json
-cat data/embeddings.json | jq '.metadata'
+ls -lh data/embeddings/collections
+cat data/embeddings/collections/index.json | jq '.collections'
 
 # 4. Use in your application
 # The embeddings file is loaded client-side for semantic search
@@ -175,10 +200,10 @@ verse-embeddings --multi-collection --collections-file _data/collections.yml
 
 ```bash
 # 1. Generate embeddings for specific collection
-verse-embeddings --verses-dir _verses/hanuman-chalisa --output data/hanuman-chalisa-embeddings.json
+verse-embeddings --collection hanuman-chalisa --collections-file _data/collections.yml
 
 # 2. Verify output
-cat data/hanuman-chalisa-embeddings.json | jq '.metadata'
+cat data/embeddings/collections/hanuman-chalisa.json | jq '.collection'
 ```
 
 ## Integration Example
@@ -186,19 +211,21 @@ cat data/hanuman-chalisa-embeddings.json | jq '.metadata'
 Client-side semantic search with multi-collection support (JavaScript):
 
 ```javascript
-// Load embeddings
-const response = await fetch('/data/embeddings.json');
-const { embeddings, metadata } = await response.json();
+// Load manifest
+const manifest = await fetch('/data/embeddings/collections/index.json').then(r => r.json());
 
-console.log(`Loaded ${metadata.total_verses} verses from ${metadata.collections?.length || 1} collection(s)`);
+// Load a specific collection
+const entry = manifest.collections.find(c => c.collection === 'hanuman-chalisa');
+const data = await fetch(`/data/embeddings/collections/${entry.path}`).then(r => r.json());
+const { verses } = data;
 
 // Search for relevant verses (works with both single and multi-collection)
 function findRelevantVerses(query, topK = 3, filterCollection = null) {
   const queryEmbedding = await generateEmbedding(query);
 
-  let filtered = embeddings;
-  if (filterCollection) {
-    filtered = embeddings.filter(v => v.collection === filterCollection);
+  let filtered = verses.en;
+  if (filterCollection && entry.collection !== filterCollection) {
+    filtered = [];
   }
 
   const scores = filtered.map(verse => ({
@@ -211,11 +238,12 @@ function findRelevantVerses(query, topK = 3, filterCollection = null) {
     .slice(0, topK);
 }
 
-// Search across all collections
-const results = await findRelevantVerses("devotion and strength");
-
 // Search within specific collection
 const hanumanResults = await findRelevantVerses("devotion", 5, "hanuman-chalisa");
+
+## Migration Note
+
+Canonical outputs are now per-collection (`data/embeddings/collections/{collection}.json`) with a manifest (`data/embeddings/collections/index.json`). Legacy combined output (`data/embeddings.json`) is only written when you pass `--legacy-output`.
 ```
 
 ## Cost & Performance
@@ -298,7 +326,7 @@ export OPENAI_API_KEY=sk-...
 Or use HuggingFace instead:
 
 ```bash
-verse-embeddings --verses-dir _verses --output data/embeddings.json --provider huggingface
+verse-embeddings --multi-collection --collections-file _data/collections.yml --provider huggingface
 ```
 
 ### "Error: No verse files found"

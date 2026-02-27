@@ -96,7 +96,7 @@ VERSE COLLECTION STATUS
    Collections:
    ├─ hanuman-chalisa                 43 verses
 
-   File: /path/to/data/embeddings.json
+   File: /path/to/data/embeddings/collections/index.json
    Size: 2.3 MB, Modified: 2026-02-14 10:30:15
 ```
 
@@ -383,4 +383,4 @@ fi
 - Checks actual files on disk, not just database records
 - Supports multiple image themes (modern-minimalist, traditional, kids-friendly, etc.)
 - Completion percentage requires: verse file + both audios + image + devanagari + translation
-- Embeddings check compares verses in collections.yml vs. embeddings.json
+- Embeddings check compares verses in collections.yml vs. data/embeddings/collections/index.json

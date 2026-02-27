@@ -240,7 +240,7 @@ HuggingFace model not downloaded.
 
 ```bash
 # First run downloads the model (~80MB)
-verse-embeddings --verses-dir _verses --output data/embeddings.json --provider huggingface
+verse-embeddings --multi-collection --collections-file _data/collections.yml --provider huggingface
 ```
 
 Wait for download to complete.
@@ -254,7 +254,7 @@ Not enough RAM for local embeddings model.
 Use OpenAI provider instead:
 
 ```bash
-verse-embeddings --verses-dir _verses --output data/embeddings.json --provider openai
+verse-embeddings --multi-collection --collections-file _data/collections.yml --provider openai
 ```
 
 Requires API key but no local processing.

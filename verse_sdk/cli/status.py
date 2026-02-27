@@ -271,9 +271,37 @@ def check_verse_status(
 
 def check_embeddings_status(project_dir: Path) -> Dict:
     """Check embeddings file status."""
-    embeddings_file = project_dir / "data" / "embeddings.json"
+    manifest_file = project_dir / "data" / "embeddings" / "collections" / "index.json"
+    legacy_file = project_dir / "data" / "embeddings.json"
 
-    if not embeddings_file.exists():
+    if manifest_file.exists():
+        try:
+            with open(manifest_file, 'r', encoding='utf-8') as f:
+                manifest = json.load(f)
+
+            collection_counts = {}
+            total = 0
+            for item in manifest.get('collections', []):
+                collection = item.get('collection', 'unknown')
+                counts = item.get('counts', {})
+                count = counts.get('total') or counts.get('en') or 0
+                collection_counts[collection] = count
+                total += count
+
+            return {
+                'exists': True,
+                'verse_count': total,
+                'collections': collection_counts,
+                'file_info': get_file_info(manifest_file),
+                'source': 'manifest'
+            }
+        except Exception as e:
+            return {
+                'exists': True,
+                'error': str(e)
+            }
+
+    if not legacy_file.exists():
         return {
             'exists': False,
             'verse_count': 0,
@@ -281,20 +309,36 @@ def check_embeddings_status(project_dir: Path) -> Dict:
         }
 
     try:
-        with open(embeddings_file, 'r', encoding='utf-8') as f:
+        with open(legacy_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        # Count verses per collection
         collection_counts = defaultdict(int)
-        for item in data:
-            collection = item.get('collection', 'unknown')
-            collection_counts[collection] += 1
+        verse_count = 0
+
+        if isinstance(data, list):
+            for item in data:
+                collection = item.get('collection', 'unknown')
+                collection_counts[collection] += 1
+            verse_count = len(data)
+        elif isinstance(data, dict):
+            verses = data.get('verses')
+            if isinstance(verses, dict):
+                verse_count = len(verses.get('en', []))
+                for item in verses.get('en', []):
+                    collection = item.get('metadata', {}).get('collection_key', 'unknown')
+                    collection_counts[collection] += 1
+            elif isinstance(data.get('embeddings'), list):
+                for item in data.get('embeddings', []):
+                    collection = item.get('collection', 'unknown')
+                    collection_counts[collection] += 1
+                verse_count = len(data.get('embeddings', []))
 
         return {
             'exists': True,
-            'verse_count': len(data),
+            'verse_count': verse_count,
             'collections': dict(collection_counts),
-            'file_info': get_file_info(embeddings_file)
+            'file_info': get_file_info(legacy_file),
+            'source': 'legacy'
         }
     except Exception as e:
         return {
@@ -540,7 +584,7 @@ def print_embeddings_status(embeddings: Dict):
     print("\n🔍 Embeddings Status:")
 
     if not embeddings['exists']:
-        print("   ✗ No embeddings file found (data/embeddings.json)")
+        print("   ✗ No embeddings found (data/embeddings/collections/index.json)")
         print("   Run: verse-embeddings --multi-collection")
         return
 
