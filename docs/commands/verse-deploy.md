@@ -12,6 +12,8 @@ verse-deploy
 
 The `verse-deploy` command automates the deployment of Cloudflare Workers that act as an OpenAI API proxy for your verse-based projects. This enables features like spiritual guidance chatbots without exposing your OpenAI API key to users.
 
+For the full lifecycle from initialization to deployment, see `docs/end-to-end-workflow.md`.
+
 **Benefits:**
 - **Secure API Key Management**: Keep OpenAI API key server-side
 - **Cost Control**: Monitor and limit API usage through Cloudflare

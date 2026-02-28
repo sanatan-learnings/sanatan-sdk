@@ -18,6 +18,7 @@ verse-embeddings --multi-collection --collections-file PATH --legacy-output [--o
 ## Description
 
 The `verse-embeddings` command generates vector embeddings for verses, enabling semantic search and AI-powered guidance features. It supports:
+- For the full lifecycle from initialization to deployment, see `docs/end-to-end-workflow.md`.
 - **Single collection mode**: Process one collection at a time
 - **Multi-collection mode**: Process multiple collections at once
 - **Canonical per-collection output**: `data/embeddings/collections/{collection}.json` + manifest

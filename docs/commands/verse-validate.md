@@ -12,6 +12,8 @@ verse-validate [OPTIONS]
 
 The `verse-validate` command checks if your project follows the recommended directory structure and conventions. It identifies missing directories, configuration errors, and provides actionable recommendations for fixing issues.
 
+For the full lifecycle from initialization to deployment, see `docs/end-to-end-workflow.md`.
+
 This is especially useful for:
 - Debugging setup issues
 - Verifying project structure after cloning

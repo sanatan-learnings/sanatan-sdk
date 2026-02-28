@@ -14,6 +14,8 @@ Complete toolkit for generating rich multimedia content for spiritual text colle
 
 ## Quick Start
 
+**Start here:** [End-to-End Workflow](docs/end-to-end-workflow.md)
+
 ### New Project Setup (Recommended)
 
 ```bash
@@ -235,11 +237,12 @@ cp .env.example .env
 # Edit .env and add your API keys
 ```
 
-See the [Usage Guide](docs/usage.md) for detailed information on project structure, workflows, batch processing, and cost optimization.
+See the [End-to-End Workflow](docs/end-to-end-workflow.md) for the full lifecycle, and the [Usage Guide](docs/usage.md) for advanced workflows and best practices.
 
 ## Documentation
 
-- **[Usage Guide](docs/usage.md)** - Project setup, workflows, batch processing, and best practices
+- **[End-to-End Workflow](docs/end-to-end-workflow.md)** - Initialize, generate, index, and deploy (full lifecycle)
+- **[Usage Guide](docs/usage.md)** - Advanced workflows, batch processing, and best practices
 - **[Local Verses Guide](docs/local-verses.md)** - Using local YAML files for verse text
 - **[Chapter-Based Formats](docs/chapter-based-formats.md)** - Multi-chapter collections (Bhagavad Gita, etc.)
 - **[Command Reference](docs/README.md)** - Detailed documentation for all commands

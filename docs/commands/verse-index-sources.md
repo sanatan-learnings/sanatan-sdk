@@ -12,6 +12,8 @@ verse-index-sources --file PATH [OPTIONS]
 
 `verse-index-sources` processes a source document, extracts structured Puranic episodes using GPT-4o, embeds them with the chosen provider, and writes the results to the project's data directory. The indexed episodes are later used by `verse-puranic-context` for retrieval-augmented generation (RAG) when generating context boxes.
 
+For the full lifecycle from initialization to deployment, see `docs/end-to-end-workflow.md`.
+
 **Pipeline:**
 1. Extract raw text from the source file (PDF/TXT/MD)
 2. Chunk text into ~4000-character segments

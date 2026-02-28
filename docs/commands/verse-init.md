@@ -143,6 +143,8 @@ Project documentation with:
 
 ## Workflow
 
+For the full lifecycle (init → generate → embeddings → index → deploy), see `docs/end-to-end-workflow.md`.
+
 ### New Project with Collection
 
 ```bash

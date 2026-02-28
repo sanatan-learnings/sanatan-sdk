@@ -12,6 +12,7 @@ verse-generate --collection COLLECTION --verse M-N [OPTIONS]  # Batch processing
 ## Description
 
 The `verse-generate` command is a complete orchestrator for verse content generation. **By default**, it executes the multimedia workflow:
+- For the full lifecycle from initialization to deployment, see `docs/end-to-end-workflow.md`.
 - Reads canonical Devanagari text from local sources
 - Automatically generates scene descriptions using GPT-4 (saved to `data/scenes/<collection>.md`)
 - Generates images using DALL-E 3 based on scene descriptions

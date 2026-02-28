@@ -12,6 +12,8 @@ verse-puranic-context --collection COLLECTION (--verse ID | --all) [OPTIONS]
 
 `verse-puranic-context` uses AI to identify relevant Puranic references (stories, characters, concepts, etymologies) and injects a `puranic_context` block into each verse file's frontmatter.
 
+For the full lifecycle from initialization to deployment, see `docs/end-to-end-workflow.md`.
+
 **RAG mode (recommended):** When indexed sources are available (`data/puranic-references.yml` + `data/puranic-index/`), the command embeds the verse text, retrieves the most relevant Puranic episodes via cosine similarity, and provides them as grounding context to GPT-4o.
 
 **Free-recall fallback:** If no sources are indexed, the command prompts you to continue with GPT-4o's built-in knowledge. Use `verse-index-sources` to add indexed sources and switch to RAG mode.

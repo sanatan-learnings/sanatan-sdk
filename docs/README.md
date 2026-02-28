@@ -25,6 +25,7 @@ Detailed documentation for the sanatan-verse-sdk commands and features.
 
 ## Guides
 
+- **[End-to-End Workflow](end-to-end-workflow.md)** - Initialize, generate, index, and deploy (full lifecycle)
 - **[Usage Guide](usage.md)** - Project setup, workflows, batch processing, and best practices
 - **[Development Guide](development.md)** - Setup and contributing to sanatan-verse-sdk
 - **[Multi-Collection Guide](multi-collection.md)** - Working with multiple verse collections
