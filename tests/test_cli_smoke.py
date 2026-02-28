@@ -148,6 +148,16 @@ def test_help_verse_generate():
     _help_exits_zero("verse_sdk.cli.generate")
 
 
+def test_help_verse_deploy():
+    result = subprocess.run(
+        [sys.executable, "-c", "import sys; sys.argv=['verse-deploy','--help']; from verse_sdk.deployment.deploy import main; main()"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"verse-deploy --help failed:\n{result.stderr}"
+    assert "usage" in result.stdout.lower()
+
+
 # ---------------------------------------------------------------------------
 # verse-init functional smoke test
 # ---------------------------------------------------------------------------
