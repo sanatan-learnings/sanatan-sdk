@@ -909,10 +909,19 @@ Examples:
     )
     if msg:
         print(msg)
+    runtime_index_path = None
     if isinstance(index_path, str):
+        runtime_index_path = index_path
         index_path = Path(index_path)
-    if index_path is not None and not Path(index_path).is_absolute():
-        index_path = project_dir / index_path
+    elif isinstance(index_path, Path):
+        runtime_index_path = str(index_path)
+    if index_path is not None:
+        if str(index_path).startswith("/data/"):
+            fs_index_path = project_dir / str(index_path).lstrip("/")
+            print(f"Normalizing runtime index_path {index_path} -> {fs_index_path}")
+            index_path = fs_index_path
+        elif not index_path.is_absolute():
+            index_path = project_dir / index_path
 
     max_input_chars, msg = resolve_value(
         "max_input_chars",
@@ -987,6 +996,8 @@ Examples:
 
     print(f"Output dir: {output_dir}")
     print(f"Index path: {index_path}")
+    if runtime_index_path and runtime_index_path != str(index_path):
+        print(f"Index path (runtime): {runtime_index_path}")
     if legacy_output:
         print(f"Legacy output file: {output_file or (Path.cwd() / 'data' / 'embeddings.json')}")
     print()

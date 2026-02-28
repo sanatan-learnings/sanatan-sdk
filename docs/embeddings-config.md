@@ -1,6 +1,6 @@
 # Embeddings Config
 
-Use `_data/embeddings.yml` to set project-wide defaults for embedding providers, models, and output paths. CLI flags always win, then environment variables, then provider-specific config, then global config, then SDK defaults.
+Use `_data/embeddings.yml` to set project-wide defaults for embedding providers, models, and output paths. CLI flags always win, then environment variables, then provider-specific config, then global config, then SDK defaults. Runtime-style paths that start with `/data/` are normalized to the local filesystem during generation.
 
 ## Example
 
@@ -24,13 +24,13 @@ active_provider: bedrock-cohere
 providers:
   openai:
     model: text-embedding-3-small
-    index_path: data/embeddings/providers/openai/collections/index.json
+    index_path: /data/embeddings/providers/openai/collections/index.json
   bedrock-cohere:
     model: cohere.embed-multilingual-v3
-    index_path: data/embeddings/providers/bedrock-cohere-embed-multilingual-v3/collections/index.json
+    index_path: /data/embeddings/providers/bedrock-cohere-embed-multilingual-v3/collections/index.json
   huggingface:
     model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
-    index_path: data/embeddings/providers/huggingface-paraphrase-multilingual-mpnet-base-v2/collections/index.json
+    index_path: /data/embeddings/providers/huggingface-paraphrase-multilingual-mpnet-base-v2/collections/index.json
 ```
 ```
 
