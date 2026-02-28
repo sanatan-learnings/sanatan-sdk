@@ -497,7 +497,7 @@ def build_collection_output(collection_key, provider_name, config, verses_en, ve
 def write_json_file(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+        json.dump(payload, f, ensure_ascii=False, indent=2, sort_keys=True)
 
 
 def compute_sha256(path: Path) -> str:
@@ -508,10 +508,41 @@ def compute_sha256(path: Path) -> str:
     return hasher.hexdigest()
 
 
+def normalize_payload(payload: dict) -> dict:
+    """Return a copy of the payload without volatile fields."""
+    if not isinstance(payload, dict):
+        return payload
+    cleaned = dict(payload)
+    cleaned.pop("generated_at", None)
+    if "collections" in cleaned and isinstance(cleaned["collections"], list):
+        cleaned["collections"] = sorted(
+            cleaned["collections"],
+            key=lambda item: item.get("collection", "") if isinstance(item, dict) else ""
+        )
+    if "verses" in cleaned and isinstance(cleaned["verses"], dict):
+        cleaned["verses"] = {
+            k: cleaned["verses"][k] for k in ("en", "hi") if k in cleaned["verses"]
+        }
+    return cleaned
+
+
 def write_collection_file(output_dir: Path, collection_key: str, payload: dict) -> dict:
     output_path = output_dir / f"{collection_key}.json"
-    write_json_file(output_path, payload)
-    checksum = compute_sha256(output_path)
+    existing_checksum = None
+    if output_path.exists():
+        try:
+            with open(output_path, 'r', encoding='utf-8') as f:
+                existing_payload = json.load(f)
+            if normalize_payload(existing_payload) == normalize_payload(payload):
+                existing_checksum = compute_sha256(output_path)
+                print(f"  Collection {collection_key} unchanged; skipping write")
+        except Exception:
+            existing_checksum = None
+    if existing_checksum is None:
+        write_json_file(output_path, payload)
+        checksum = compute_sha256(output_path)
+    else:
+        checksum = existing_checksum
     counts = {
         'en': len(payload.get('verses', {}).get('en', [])),
         'hi': len(payload.get('verses', {}).get('hi', []))
@@ -527,17 +558,25 @@ def write_collection_file(output_dir: Path, collection_key: str, payload: dict) 
         'model': payload.get('model'),
         'dimensions': payload.get('dimensions'),
         'provider': payload.get('provider'),
-        'generated_at': payload.get('generated_at')
     }
 
 
 def write_manifest(output_dir: Path, entries: list) -> Path:
     manifest = {
-        'generated_at': datetime.now().isoformat(),
         'collections': entries
     }
     manifest_path = output_dir / "index.json"
+    if manifest_path.exists():
+        try:
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                existing = json.load(f)
+            if normalize_payload(existing) == normalize_payload(manifest):
+                print("index.json unchanged; skipping write")
+                return manifest_path
+        except Exception:
+            pass
     write_json_file(manifest_path, manifest)
+    print("index.json updated (reason: content changed)")
     return manifest_path
 
 
@@ -707,6 +746,7 @@ Examples:
         entry = write_collection_file(output_dir, output_item['collection'], payload)
         manifest_entries.append(entry)
 
+    manifest_entries.sort(key=lambda item: item.get("collection", ""))
     manifest_path = write_manifest(output_dir, manifest_entries)
 
     if legacy_output:
