@@ -255,6 +255,20 @@ Use OpenAI provider instead:
 
 ```bash
 verse-embeddings --multi-collection --collections-file _data/collections.yml --provider openai
+
+### "ValidationException: expected maxLength: 2048" (Bedrock Cohere)
+
+If Bedrock Cohere rejects long inputs, use a truncation policy:
+
+```bash
+verse-embeddings --provider bedrock-cohere --truncate-policy drop
+```
+
+Or explicitly set the limit:
+
+```bash
+verse-embeddings --provider bedrock-cohere --max-input-chars 2048 --truncate-policy truncate
+```
 ```
 
 Requires API key but no local processing.

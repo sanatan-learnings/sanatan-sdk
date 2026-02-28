@@ -47,7 +47,8 @@ PROVIDERS = {
         'dimensions': 1024,
         'cost_per_1m': 0.10,
         'requires_api_key': False,
-        'backend': 'bedrock'
+        'backend': 'bedrock',
+        'max_input_chars': 2048
     },
     'huggingface': {
         'model': 'sentence-transformers/all-MiniLM-L6-v2',
@@ -202,9 +203,9 @@ def get_enabled_collections(collections_config):
     }
 
 
-def build_document(verse_data, lang='en'):
+def build_document_parts(verse_data, lang='en'):
     """
-    Build a rich semantic document from verse data.
+    Build ordered document parts from verse data.
 
     Combines multiple fields to capture full spiritual context:
     - Title (semantic anchor)
@@ -219,31 +220,31 @@ def build_document(verse_data, lang='en'):
     # Title
     title_key = f'title_{lang}'
     if title_key in verse_data:
-        parts.append(verse_data[title_key])
+        parts.append((title_key, verse_data[title_key]))
 
     # Transliteration (same for both languages)
     if 'transliteration' in verse_data:
-        parts.append(f"Transliteration: {verse_data['transliteration']}")
+        parts.append(("transliteration", f"Transliteration: {verse_data['transliteration']}"))
 
     # Literal Translation
     lit_key = 'literal_translation'
     if lit_key in verse_data:
         lit_data = verse_data[lit_key]
         if isinstance(lit_data, dict) and lang in lit_data:
-            parts.append(f"Translation: {lit_data[lang]}")
+            parts.append(("literal_translation", f"Translation: {lit_data[lang]}"))
 
     # Interpretive Meaning
     meaning_key = 'interpretive_meaning'
     if meaning_key in verse_data:
         meaning_data = verse_data[meaning_key]
         if isinstance(meaning_data, dict) and lang in meaning_data:
-            parts.append(f"Meaning: {meaning_data[lang]}")
+            parts.append(("interpretive_meaning", f"Meaning: {meaning_data[lang]}"))
 
     # Story
     if 'story' in verse_data:
         story_data = verse_data['story']
         if isinstance(story_data, dict) and lang in story_data:
-            parts.append(f"Story: {story_data[lang]}")
+            parts.append(("story", f"Story: {story_data[lang]}"))
 
     # Practical Application
     if 'practical_application' in verse_data:
@@ -253,15 +254,95 @@ def build_document(verse_data, lang='en'):
         if 'teaching' in app_data:
             teaching = app_data['teaching']
             if isinstance(teaching, dict) and lang in teaching:
-                parts.append(f"Teaching: {teaching[lang]}")
+                parts.append(("teaching", f"Teaching: {teaching[lang]}"))
 
         # When to use
         if 'when_to_use' in app_data:
             when = app_data['when_to_use']
             if isinstance(when, dict) and lang in when:
-                parts.append(f"When to Use: {when[lang]}")
+                parts.append(("when_to_use", f"When to Use: {when[lang]}"))
 
+    return parts
+
+
+def build_document(verse_data, lang='en'):
+    parts = [text for _, text in build_document_parts(verse_data, lang)]
     return "\n\n".join(parts)
+
+
+def reduce_document(verse_data, lang, max_chars, policy):
+    parts = build_document_parts(verse_data, lang)
+    if max_chars is None:
+        combined = "\n\n".join(text for _, text in parts)
+        return combined, False, len(combined)
+
+    combined = "\n\n".join(text for _, text in parts)
+    if len(combined) <= max_chars:
+        return combined, False, len(combined)
+
+    reduced_parts = []
+    current_len = 0
+    for _, text in parts:
+        if not reduced_parts:
+            next_len = len(text)
+        else:
+            next_len = current_len + 2 + len(text)
+
+        if next_len <= max_chars:
+            reduced_parts.append(text)
+            current_len = next_len
+            continue
+
+        if policy == "truncate" or not reduced_parts:
+            remaining = max_chars - current_len
+            if reduced_parts and remaining > 2:
+                remaining -= 2
+            if remaining > 0:
+                reduced_parts.append(text[:remaining])
+            current_len = max_chars
+        break
+
+    reduced = "\n\n".join(reduced_parts)
+    return reduced, True, len(combined)
+
+
+def average_embeddings(embeddings):
+    if not embeddings:
+        return None
+    length = len(embeddings[0])
+    totals = [0.0] * length
+    for emb in embeddings:
+        for i, value in enumerate(emb):
+            totals[i] += value
+    return [value / len(embeddings) for value in totals]
+
+
+def embed_text(
+    text,
+    embed_func,
+    client_or_model,
+    config,
+    backend,
+    max_input_chars=None,
+    truncate_policy="drop",
+):
+    if backend == 'bedrock' and max_input_chars and len(text) > max_input_chars:
+        if truncate_policy == "chunk":
+            chunks = [
+                text[i:i + max_input_chars]
+                for i in range(0, len(text), max_input_chars)
+            ]
+            print(f"  Bedrock input too long; chunking into {len(chunks)} parts")
+            embeddings = []
+            for chunk in chunks:
+                embeddings.append(embed_func(chunk, client_or_model, config))
+            return average_embeddings(embeddings)
+
+    if backend == 'bedrock':
+        return embed_func(text, client_or_model, config)
+    if backend == 'openai':
+        return embed_func(text, client_or_model, config['model'])
+    return embed_func(text, client_or_model)
 
 
 def extract_permalink_from_frontmatter(verse_data):
@@ -293,7 +374,16 @@ def generate_verse_url(verse_data):
     return f'/verses/verse-{verse_num:02d}/'
 
 
-def process_verse_file(file_path, embed_func, client_or_model, config, collection_metadata=None):
+def process_verse_file(
+    file_path,
+    embed_func,
+    client_or_model,
+    config,
+    collection_metadata=None,
+    provider_name=None,
+    max_input_chars=None,
+    truncate_policy="drop",
+):
     """Process a single verse file and return metadata + embeddings.
 
     Args:
@@ -313,30 +403,48 @@ def process_verse_file(file_path, embed_func, client_or_model, config, collectio
     verse_num = verse_data.get('verse_number', 0)
 
     # Build documents for both languages
-    doc_en = build_document(verse_data, 'en')
-    doc_hi = build_document(verse_data, 'hi')
+    if truncate_policy == "chunk":
+        doc_en = build_document(verse_data, 'en')
+        doc_hi = build_document(verse_data, 'hi')
+        reduced_en = False
+        reduced_hi = False
+        orig_len_en = len(doc_en)
+        orig_len_hi = len(doc_hi)
+    else:
+        doc_en, reduced_en, orig_len_en = reduce_document(verse_data, 'en', max_input_chars, truncate_policy)
+        doc_hi, reduced_hi, orig_len_hi = reduce_document(verse_data, 'hi', max_input_chars, truncate_policy)
 
     # Get embeddings
     backend = config.get('backend', 'openai')
 
     print("  Getting English embedding...")
-    if backend == 'bedrock':
-        emb_en = embed_func(doc_en, client_or_model, config)
-    elif backend == 'openai':
-        emb_en = embed_func(doc_en, client_or_model, config['model'])
-    else:
-        emb_en = embed_func(doc_en, client_or_model)
+    if reduced_en:
+        print(f"  Warning: Reduced English input length for {provider_name or backend} ({orig_len_en} → {len(doc_en)} chars, max {max_input_chars})")
+    emb_en = embed_text(
+        doc_en,
+        embed_func,
+        client_or_model,
+        config,
+        backend,
+        max_input_chars=max_input_chars,
+        truncate_policy=truncate_policy,
+    )
 
     if backend in ('openai', 'bedrock'):
         time.sleep(0.1)
 
     print("  Getting Hindi embedding...")
-    if backend == 'bedrock':
-        emb_hi = embed_func(doc_hi, client_or_model, config)
-    elif backend == 'openai':
-        emb_hi = embed_func(doc_hi, client_or_model, config['model'])
-    else:
-        emb_hi = embed_func(doc_hi, client_or_model)
+    if reduced_hi:
+        print(f"  Warning: Reduced Hindi input length for {provider_name or backend} ({orig_len_hi} → {len(doc_hi)} chars, max {max_input_chars})")
+    emb_hi = embed_text(
+        doc_hi,
+        embed_func,
+        client_or_model,
+        config,
+        backend,
+        max_input_chars=max_input_chars,
+        truncate_policy=truncate_policy,
+    )
 
     if backend in ('openai', 'bedrock'):
         time.sleep(0.1)
@@ -387,7 +495,16 @@ def process_verse_file(file_path, embed_func, client_or_model, config, collectio
     return result
 
 
-def process_single_collection(verses_dir, embed_func, client_or_model, config, collection_metadata=None):
+def process_single_collection(
+    verses_dir,
+    embed_func,
+    client_or_model,
+    config,
+    collection_metadata=None,
+    provider_name=None,
+    max_input_chars=None,
+    truncate_policy="drop",
+):
     """Process verses from a single directory (backward compatibility mode)."""
     # Check verses directory
     if not verses_dir.exists():
@@ -406,7 +523,10 @@ def process_single_collection(verses_dir, embed_func, client_or_model, config, c
     for verse_file in verse_files:
         result = process_verse_file(
             verse_file, embed_func, client_or_model, config,
-            collection_metadata=collection_metadata
+            collection_metadata=collection_metadata,
+            provider_name=provider_name,
+            max_input_chars=max_input_chars,
+            truncate_policy=truncate_policy,
         )
         if result:
             verses_en.append(result['en'])
@@ -420,7 +540,16 @@ def process_single_collection(verses_dir, embed_func, client_or_model, config, c
     return verses_en, verses_hi
 
 
-def process_multi_collection(collections_file, base_verses_dir, embed_func, client_or_model, config):
+def process_multi_collection(
+    collections_file,
+    base_verses_dir,
+    embed_func,
+    client_or_model,
+    config,
+    provider_name=None,
+    max_input_chars=None,
+    truncate_policy="drop",
+):
     """Process verses from multiple collections."""
     # Load collections configuration
     collections_config = load_collections_config(collections_file)
@@ -461,7 +590,10 @@ def process_multi_collection(collections_file, base_verses_dir, embed_func, clie
 
         verses_en, verses_hi = process_single_collection(
             verses_dir, embed_func, client_or_model, config,
-            collection_metadata=collection_metadata
+            collection_metadata=collection_metadata,
+            provider_name=provider_name,
+            max_input_chars=max_input_chars,
+            truncate_policy=truncate_policy,
         )
 
         outputs.append({
@@ -639,6 +771,18 @@ Examples:
         help='Path to collections.yml file (required for multi-collection mode)'
     )
     parser.add_argument(
+        '--max-input-chars',
+        type=int,
+        default=None,
+        help='Max input characters per embedding request (provider-specific default if omitted)'
+    )
+    parser.add_argument(
+        '--truncate-policy',
+        choices=['drop', 'truncate', 'chunk'],
+        default='drop',
+        help='How to handle inputs exceeding max length: drop sections, truncate, or chunk+average'
+    )
+    parser.add_argument(
         '--legacy-output',
         action='store_true',
         help='Write legacy combined embeddings output (opt-in)'
@@ -651,6 +795,7 @@ Examples:
     output_dir = args.output_dir
     collection_key = args.collection
     legacy_output = args.legacy_output
+    truncate_policy = args.truncate_policy
     multi_collection = args.multi_collection
     collections_file = args.collections_file
 
@@ -668,10 +813,13 @@ Examples:
 
     # Initialize provider
     embed_func, client_or_model, config = initialize_provider(provider_name)
+    max_input_chars = args.max_input_chars or config.get('max_input_chars')
 
     print(f"Provider: {provider_name}")
     print(f"Model: {config['model']}")
     print(f"Dimensions: {config['dimensions']}")
+    if max_input_chars:
+        print(f"Max input chars: {max_input_chars} (policy: {truncate_policy})")
 
     if multi_collection:
         print("Mode: Multi-collection")
@@ -691,7 +839,14 @@ Examples:
     # Process verses
     if multi_collection:
         collection_outputs = process_multi_collection(
-            collections_file, verses_dir, embed_func, client_or_model, config
+            collections_file,
+            verses_dir,
+            embed_func,
+            client_or_model,
+            config,
+            provider_name=provider_name,
+            max_input_chars=max_input_chars,
+            truncate_policy=truncate_policy,
         )
     else:
         collection_name = None
@@ -723,8 +878,14 @@ Examples:
             'name': collection_name or collection_key
         }
         verses_en, verses_hi = process_single_collection(
-            verses_dir, embed_func, client_or_model, config,
-            collection_metadata=collection_metadata
+            verses_dir,
+            embed_func,
+            client_or_model,
+            config,
+            collection_metadata=collection_metadata,
+            provider_name=provider_name,
+            max_input_chars=max_input_chars,
+            truncate_policy=truncate_policy,
         )
         collection_outputs = [{
             'collection': collection_key,

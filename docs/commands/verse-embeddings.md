@@ -46,6 +46,8 @@ The `verse-embeddings` command generates vector embeddings for verses, enabling 
 - `--output-dir PATH` - Output directory for canonical per-collection files (default: `data/embeddings/collections`)
 - `--legacy-output` - Write legacy combined output (opt-in)
 - `--output PATH` - Legacy combined output file path (used with `--legacy-output`)
+- `--max-input-chars N` - Max input length (chars) per embedding request (defaults per provider)
+- `--truncate-policy {drop,truncate,chunk}` - How to handle over-limit inputs (default: `drop`)
 
 ## Examples
 
@@ -59,6 +61,13 @@ verse-embeddings --multi-collection --collections-file _data/collections.yml
 
 # Using HuggingFace (free, local)
 verse-embeddings --multi-collection --collections-file _data/collections.yml --provider huggingface
+
+### Bedrock Cohere Limits
+
+Bedrock Cohere has strict input limits (default `2048` chars). If a verse exceeds this, the SDK will apply the selected policy:
+- `drop` (default): drop low-priority sections until under limit
+- `truncate`: truncate the last section to fit
+- `chunk`: split into chunks and average embeddings
 ```
 
 This processes all collections with `enabled: true` in `collections.yml` and creates per-collection embeddings under `data/embeddings/collections/` plus a manifest `data/embeddings/collections/index.json`.
