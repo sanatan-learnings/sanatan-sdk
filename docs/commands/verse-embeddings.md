@@ -26,7 +26,7 @@ The `verse-embeddings` command generates vector embeddings for verses, enabling 
 - **HuggingFace provider** (free): Local models, no API key needed
 
 Configuration precedence:
-`CLI flags` > `_data/embeddings.yml` > `env vars` > `SDK defaults`
+`CLI flags` > `env vars` > `providers.<active_provider>` > global config > `SDK defaults`
 
 ## Options
 

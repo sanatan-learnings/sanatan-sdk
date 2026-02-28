@@ -26,7 +26,11 @@ from pathlib import Path
 
 import yaml
 
-from verse_sdk.utils.embeddings_config import load_embeddings_config, resolve_with_precedence
+from verse_sdk.utils.embeddings_config import (
+    get_provider_config,
+    load_embeddings_config,
+    resolve_with_precedence,
+)
 
 try:
     from dotenv import load_dotenv
@@ -844,21 +848,48 @@ Examples:
     if msg:
         print(msg)
 
-    model_override, msg = resolve_with_precedence(
+    provider_config = get_provider_config(config_data, provider_name)
+
+    def resolve_value(key, cli_value, env_value, provider_value, flat_value, default_value):
+        if cli_value is not None:
+            if provider_value is not None:
+                return cli_value, f"Using {key}={cli_value} from CLI flag (overrides provider config: {provider_value})."
+            if flat_value is not None:
+                return cli_value, f"Using {key}={cli_value} from CLI flag (overrides config: {flat_value})."
+            if env_value is not None:
+                return cli_value, f"Using {key}={cli_value} from CLI flag (overrides env: {env_value})."
+            return cli_value, f"Using {key}={cli_value} from CLI flag."
+        if env_value is not None:
+            if provider_value is not None:
+                return env_value, f"Using {key}={env_value} from environment (overrides provider config: {provider_value})."
+            if flat_value is not None:
+                return env_value, f"Using {key}={env_value} from environment (overrides config: {flat_value})."
+            return env_value, f"Using {key}={env_value} from environment."
+        if provider_value is not None:
+            if flat_value is not None and provider_value != flat_value:
+                return provider_value, f"Using {key}={provider_value} from provider config (overrides config: {flat_value})."
+            return provider_value, f"Using {key}={provider_value} from provider config."
+        if flat_value is not None:
+            return flat_value, f"Using {key}={flat_value} from config."
+        return default_value, None
+
+    model_override, msg = resolve_value(
         "model",
         model_override,
-        config_data.active_model,
         model_env,
+        provider_config.model,
+        config_data.active_model,
         None,
     )
     if msg:
         print(msg)
 
-    output_dir, msg = resolve_with_precedence(
+    output_dir, msg = resolve_value(
         "output_dir",
         output_dir,
-        config_data.output_dir,
         output_dir_env,
+        provider_config.output_dir,
+        config_data.output_dir,
         project_dir / "data" / "embeddings" / "collections",
     )
     if msg:
@@ -868,11 +899,12 @@ Examples:
     if output_dir is not None and not Path(output_dir).is_absolute():
         output_dir = project_dir / output_dir
 
-    index_path, msg = resolve_with_precedence(
+    index_path, msg = resolve_value(
         "index_path",
         args.index_path,
-        config_data.index_path,
         index_path_env,
+        provider_config.index_path,
+        config_data.index_path,
         None,
     )
     if msg:
@@ -882,21 +914,23 @@ Examples:
     if index_path is not None and not Path(index_path).is_absolute():
         index_path = project_dir / index_path
 
-    max_input_chars, msg = resolve_with_precedence(
+    max_input_chars, msg = resolve_value(
         "max_input_chars",
         args.max_input_chars,
-        config_data.max_input_chars,
         int(max_input_env) if max_input_env else None,
+        provider_config.max_input_chars,
+        config_data.max_input_chars,
         None,
     )
     if msg:
         print(msg)
 
-    truncate_policy, msg = resolve_with_precedence(
+    truncate_policy, msg = resolve_value(
         "truncate_policy",
         truncate_policy,
-        config_data.truncate_policy,
         truncate_policy_env,
+        provider_config.truncate_policy,
+        config_data.truncate_policy,
         "chunk",
     )
     if msg:
