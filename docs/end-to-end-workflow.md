@@ -49,6 +49,7 @@ verse-parse-source \
   --collection hanuman-chalisa \
   --source data/source-texts/hanuman-chalisa.txt
 ```
+Defaults filter front-matter and OCR noise. Use `--filter-frontmatter false` or `--filter-ocr-noise false` to opt out.
 
 Option B: Edit manually:
 Edit `data/verses/<collection>.yaml` and add the Devanagari text for each verse. See `docs/local-verses.md` for the YAML format.

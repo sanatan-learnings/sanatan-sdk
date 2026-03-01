@@ -25,6 +25,11 @@ For the full lifecycle from initialization to deployment, see `docs/end-to-end-w
 - `--output PATH` - Output YAML path (default: `data/verses/<collection>.yaml`)
 - `--dry-run` - Print summary without writing output
 - `--diff` - Show unified diff if output changes
+- `--filter-frontmatter {true,false}` - Drop front-matter lines before the first verse (default: `true`)
+- `--filter-ocr-noise {true,false}` - Drop noisy OCR lines (default: `true`)
+- `--frontmatter-max-lines N` - Max initial lines to scan for front-matter (default: `300`)
+- `--noise-threshold N` - Noise threshold from `0.0` to `1.0` (default: `0.65`)
+- `--report PATH` - Write parse report JSON
 
 ## Formats
 
@@ -60,5 +65,11 @@ verse-parse-source \
 verse-parse-source \
   --collection hanuman-chalisa \
   --source data/source-texts/hanuman-chalisa.txt \
-  --dry-run --diff
+  --dry-run --diff --report parse-report.json
+
+# Disable filtering (if needed)
+verse-parse-source \
+  --collection hanuman-chalisa \
+  --source data/source-texts/hanuman-chalisa.txt \
+  --filter-frontmatter false --filter-ocr-noise false
 ```
