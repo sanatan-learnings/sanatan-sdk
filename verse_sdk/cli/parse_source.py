@@ -257,6 +257,7 @@ def _parse_plain(
         "lines_noise_dropped": 0,
         "lines_prose_dropped": 0,
     }
+    samples: Dict[str, List[str]] = {}
 
     for path in files:
         text = path.read_text(encoding="utf-8")
@@ -271,12 +272,11 @@ def _parse_plain(
         )
         for key in list(stats.keys()):
             stats[key] += int(file_stats.get(key, 0))
-        stats.setdefault("samples", {})
         for sample_key, sample_values in file_stats.get("samples", {}).items():
-            stats["samples"].setdefault(sample_key, [])
+            samples.setdefault(sample_key, [])
             for value in sample_values:
-                if len(stats["samples"][sample_key]) < 5:
-                    stats["samples"][sample_key].append(value)
+                if len(samples[sample_key]) < 5:
+                    samples[sample_key].append(value)
 
         if chaptered:
             buffer: List[str] = []
@@ -297,7 +297,7 @@ def _parse_plain(
             verses = _split_verses(filtered)
             entries.extend([(None, v) for v in verses])
 
-    return entries, stats
+    return entries, {**stats, "samples": samples}
 
 
 def _build_yaml(entries: List[Tuple[Optional[int], str]], collection_key: str, chaptered: bool) -> Dict[str, Dict[str, str]]:
