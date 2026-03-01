@@ -251,10 +251,11 @@ def _parse_plain(
 ) -> Tuple[List[Tuple[Optional[int], str]], Dict[str, int]]:
     entries: List[Tuple[Optional[int], str]] = []
     current_chapter: Optional[int] = None
-    stats = {
+    stats: Dict[str, int] = {
         "lines_scanned": 0,
         "lines_frontmatter_dropped": 0,
         "lines_noise_dropped": 0,
+        "lines_prose_dropped": 0,
     }
 
     for path in files:
@@ -268,8 +269,8 @@ def _parse_plain(
             noise_threshold=noise_threshold,
             profile=profile,
         )
-        for key in stats:
-            stats[key] += file_stats.get(key, 0)
+        for key in list(stats.keys()):
+            stats[key] += int(file_stats.get(key, 0))
         stats.setdefault("samples", {})
         for sample_key, sample_values in file_stats.get("samples", {}).items():
             stats["samples"].setdefault(sample_key, [])
