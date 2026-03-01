@@ -36,6 +36,7 @@ For the full lifecycle from initialization to deployment, see `docs/end-to-end-w
 - `--start-marker TEXT` - Start parsing after this marker string
 - `--start-marker-regex REGEX` - Start parsing after regex match
 - `--disable-start-anchor` - Disable profile start-anchor behavior
+- `--disable-heading-filter` - Disable profile heading-line filter
 
 ## Formats
 

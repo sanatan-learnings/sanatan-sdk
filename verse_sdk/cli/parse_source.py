@@ -49,6 +49,13 @@ PROFILE_DEFAULTS = {
             "श्रीमद्भागवत-माहात्म्य",
             "श्रीमद भागवत-माहात्म्य",
         ],
+        "drop_heading_lines": True,
+        "heading_patterns": [
+            re.compile(r"^\s*॥\s*ॐ\s*नमो\s*भगवते\s*वासुदेवाय\s*॥\s*$"),
+            re.compile(r"^\s*कृष्णं\s+नारायणं.+पृथासुतम्\s*॥\s*$"),
+            re.compile(r".*अध्यायः.*"),
+            re.compile(r".*अध्याय.*"),
+        ],
         "extra_frontmatter_patterns": [
             re.compile(r"\b(edition|press|publisher|publication)\b", re.IGNORECASE),
             re.compile(r"\b(email|website|www\.|http)\b", re.IGNORECASE),
@@ -138,6 +145,16 @@ def _is_prose_line(line: str, profile: dict) -> bool:
     return len(words) >= profile.get("prose_max_words", 28)
 
 
+def _is_heading_line(line: str, profile: dict) -> bool:
+    if not profile.get("drop_heading_lines"):
+        return False
+    stripped = line.strip()
+    if not stripped:
+        return False
+    patterns = profile.get("heading_patterns", [])
+    return any(pattern.search(stripped) for pattern in patterns)
+
+
 def _filter_lines(
     lines: List[str],
     *,
@@ -155,12 +172,14 @@ def _filter_lines(
         "lines_frontmatter_dropped": 0,
         "lines_noise_dropped": 0,
         "lines_prose_dropped": 0,
+        "lines_heading_dropped": 0,
         "start_anchor_found": 0,
     }
     samples = {
         "frontmatter": [],
         "noise": [],
         "prose": [],
+        "heading": [],
     }
 
     filtered = lines[:]
@@ -254,6 +273,17 @@ def _filter_lines(
                 stats["lines_prose_dropped"] += 1
                 if len(samples["prose"]) < 5:
                     samples["prose"].append(line.strip())
+                continue
+            cleaned.append(line)
+        filtered = cleaned
+
+    if profile.get("drop_heading_lines"):
+        cleaned = []
+        for line in filtered:
+            if _is_heading_line(line, profile):
+                stats["lines_heading_dropped"] += 1
+                if len(samples["heading"]) < 5:
+                    samples["heading"].append(line.strip())
                 continue
             cleaned.append(line)
         filtered = cleaned
@@ -411,6 +441,7 @@ def main():
     parser.add_argument("--start-marker", help="Start parsing after this marker string")
     parser.add_argument("--start-marker-regex", help="Start parsing after regex match")
     parser.add_argument("--disable-start-anchor", action="store_true", help="Disable profile start-anchor behavior")
+    parser.add_argument("--disable-heading-filter", action="store_true", help="Disable profile heading-line filter")
 
     args = parser.parse_args()
 
@@ -435,6 +466,9 @@ def main():
     filter_ocr_noise = args.filter_ocr_noise.lower() == "true"
 
     start_marker_regex = re.compile(args.start_marker_regex) if args.start_marker_regex else None
+
+    if args.disable_heading_filter:
+        profile = {**profile, "drop_heading_lines": False}
 
     entries, stats = _parse_plain(
         files,
@@ -470,6 +504,7 @@ def main():
     print(f"Front-matter lines dropped: {stats['lines_frontmatter_dropped']}")
     print(f"OCR/noise lines dropped: {stats['lines_noise_dropped']}")
     print(f"Prose/commentary lines dropped: {stats.get('lines_prose_dropped', 0)}")
+    print(f"Heading lines dropped: {stats.get('lines_heading_dropped', 0)}")
     if stats.get("anchor", {}).get("anchor_found"):
         print(f"Start anchor: {stats['anchor'].get('anchor_value')} (line {stats['anchor'].get('anchor_line')})")
     else:
@@ -498,6 +533,7 @@ def main():
             "lines_frontmatter_dropped": stats["lines_frontmatter_dropped"],
             "lines_noise_dropped": stats["lines_noise_dropped"],
             "lines_prose_dropped": stats.get("lines_prose_dropped", 0),
+            "lines_heading_dropped": stats.get("lines_heading_dropped", 0),
             "samples": stats.get("samples", {}),
             "start_anchor": stats.get("anchor", {}),
         }
