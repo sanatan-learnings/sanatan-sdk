@@ -44,6 +44,11 @@ PROFILE_DEFAULTS = {
         "prose_max_words": 18,
         "noise_threshold": 0.55,
         "frontmatter_max_lines": 500,
+        "start_markers": [
+            "श्रीमदभागवत-माहात्म्य",
+            "श्रीमद्भागवत-माहात्म्य",
+            "श्रीमद भागवत-माहात्म्य",
+        ],
         "extra_frontmatter_patterns": [
             re.compile(r"\b(edition|press|publisher|publication)\b", re.IGNORECASE),
             re.compile(r"\b(email|website|www\.|http)\b", re.IGNORECASE),
@@ -141,12 +146,16 @@ def _filter_lines(
     frontmatter_max_lines: int,
     noise_threshold: float,
     profile: dict,
+    start_marker: Optional[str],
+    start_marker_regex: Optional[re.Pattern[str]],
+    disable_start_anchor: bool,
 ) -> Tuple[List[str], Dict[str, int]]:
     stats = {
         "lines_scanned": len(lines),
         "lines_frontmatter_dropped": 0,
         "lines_noise_dropped": 0,
         "lines_prose_dropped": 0,
+        "start_anchor_found": 0,
     }
     samples = {
         "frontmatter": [],
@@ -155,6 +164,38 @@ def _filter_lines(
     }
 
     filtered = lines[:]
+    anchor_info = {
+        "anchor_found": False,
+        "anchor_value": None,
+        "anchor_line": None,
+    }
+
+    if not disable_start_anchor:
+        markers: List[str] = []
+        if start_marker:
+            markers = [start_marker]
+        else:
+            markers = profile.get("start_markers", []) or []
+
+        if start_marker_regex is not None:
+            for idx, line in enumerate(filtered):
+                if start_marker_regex.search(line):
+                    anchor_info["anchor_found"] = True
+                    anchor_info["anchor_value"] = start_marker_regex.pattern
+                    anchor_info["anchor_line"] = idx + 1
+                    filtered = filtered[idx:]
+                    break
+        elif markers:
+            for idx, line in enumerate(filtered):
+                if any(marker in line for marker in markers):
+                    anchor_info["anchor_found"] = True
+                    anchor_info["anchor_value"] = next(m for m in markers if m in line)
+                    anchor_info["anchor_line"] = idx + 1
+                    filtered = filtered[idx:]
+                    break
+
+        if anchor_info["anchor_found"]:
+            stats["start_anchor_found"] = 1
 
     if filter_frontmatter:
         scan_limit = min(frontmatter_max_lines, len(filtered))
@@ -217,7 +258,7 @@ def _filter_lines(
             cleaned.append(line)
         filtered = cleaned
 
-    return filtered, {**stats, "samples": samples}
+    return filtered, {**stats, "samples": samples, "anchor": anchor_info}
 
 
 def _split_verses(lines: List[str]) -> List[str]:
@@ -248,6 +289,9 @@ def _parse_plain(
     frontmatter_max_lines: int,
     noise_threshold: float,
     profile: dict,
+    start_marker: Optional[str],
+    start_marker_regex: Optional[re.Pattern[str]],
+    disable_start_anchor: bool,
 ) -> Tuple[List[Tuple[Optional[int], str]], Dict[str, int]]:
     entries: List[Tuple[Optional[int], str]] = []
     current_chapter: Optional[int] = None
@@ -258,6 +302,11 @@ def _parse_plain(
         "lines_prose_dropped": 0,
     }
     samples: Dict[str, List[str]] = {}
+    anchor_info = {
+        "anchor_found": False,
+        "anchor_value": None,
+        "anchor_line": None,
+    }
 
     for path in files:
         text = path.read_text(encoding="utf-8")
@@ -269,6 +318,9 @@ def _parse_plain(
             frontmatter_max_lines=frontmatter_max_lines,
             noise_threshold=noise_threshold,
             profile=profile,
+            start_marker=start_marker,
+            start_marker_regex=start_marker_regex,
+            disable_start_anchor=disable_start_anchor,
         )
         for key in list(stats.keys()):
             stats[key] += int(file_stats.get(key, 0))
@@ -277,6 +329,9 @@ def _parse_plain(
             for value in sample_values:
                 if len(samples[sample_key]) < 5:
                     samples[sample_key].append(value)
+
+        if file_stats.get("anchor", {}).get("anchor_found") and not anchor_info["anchor_found"]:
+            anchor_info = file_stats["anchor"]
 
         if chaptered:
             buffer: List[str] = []
@@ -297,7 +352,7 @@ def _parse_plain(
             verses = _split_verses(filtered)
             entries.extend([(None, v) for v in verses])
 
-    return entries, {**stats, "samples": samples}
+    return entries, {**stats, "samples": samples, "anchor": anchor_info}
 
 
 def _build_yaml(entries: List[Tuple[Optional[int], str]], collection_key: str, chaptered: bool) -> Dict[str, Dict[str, str]]:
@@ -353,6 +408,9 @@ def main():
     parser.add_argument("--report", help="Write parse report JSON to this path")
     parser.add_argument("--expected-count-min", type=int, help="Warn if parsed verses drop below this count")
     parser.add_argument("--expected-count-max", type=int, help="Warn if parsed verses exceed this count")
+    parser.add_argument("--start-marker", help="Start parsing after this marker string")
+    parser.add_argument("--start-marker-regex", help="Start parsing after regex match")
+    parser.add_argument("--disable-start-anchor", action="store_true", help="Disable profile start-anchor behavior")
 
     args = parser.parse_args()
 
@@ -376,6 +434,8 @@ def main():
     filter_frontmatter = args.filter_frontmatter.lower() == "true"
     filter_ocr_noise = args.filter_ocr_noise.lower() == "true"
 
+    start_marker_regex = re.compile(args.start_marker_regex) if args.start_marker_regex else None
+
     entries, stats = _parse_plain(
         files,
         chaptered=chaptered,
@@ -384,6 +444,9 @@ def main():
         frontmatter_max_lines=args.frontmatter_max_lines,
         noise_threshold=args.noise_threshold,
         profile=profile,
+        start_marker=args.start_marker,
+        start_marker_regex=start_marker_regex,
+        disable_start_anchor=args.disable_start_anchor,
     )
     data = _build_yaml(entries, args.collection, chaptered=chaptered)
     rendered = _render_yaml(data)
@@ -407,6 +470,10 @@ def main():
     print(f"Front-matter lines dropped: {stats['lines_frontmatter_dropped']}")
     print(f"OCR/noise lines dropped: {stats['lines_noise_dropped']}")
     print(f"Prose/commentary lines dropped: {stats.get('lines_prose_dropped', 0)}")
+    if stats.get("anchor", {}).get("anchor_found"):
+        print(f"Start anchor: {stats['anchor'].get('anchor_value')} (line {stats['anchor'].get('anchor_line')})")
+    else:
+        print("Start anchor: not found")
     print(f"Output: {output_path}")
 
     if args.expected_count_min and total < args.expected_count_min:
@@ -432,6 +499,7 @@ def main():
             "lines_noise_dropped": stats["lines_noise_dropped"],
             "lines_prose_dropped": stats.get("lines_prose_dropped", 0),
             "samples": stats.get("samples", {}),
+            "start_anchor": stats.get("anchor", {}),
         }
         report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
         print(f"Wrote report: {report_path}")

@@ -33,6 +33,9 @@ For the full lifecycle from initialization to deployment, see `docs/end-to-end-w
 - `--report PATH` - Write parse report JSON
 - `--expected-count-min N` - Warn if verse count is below this value
 - `--expected-count-max N` - Warn if verse count exceeds this value
+- `--start-marker TEXT` - Start parsing after this marker string
+- `--start-marker-regex REGEX` - Start parsing after regex match
+- `--disable-start-anchor` - Disable profile start-anchor behavior
 
 ## Formats
 
@@ -78,6 +81,14 @@ verse-parse-source \
   --profile srimad-bhagavat \
   --expected-count-min 16000 \
   --expected-count-max 20000
+
+# Custom anchor override
+verse-parse-source \
+  --collection srimad-bhagavat \
+  --source-dir data/source-texts/srimad-bhagavat \
+  --source-glob "volume-*/**/*.txt" \
+  --profile srimad-bhagavat \
+  --start-marker "श्रीमदभागवत-माहात्म्य"
 
 # Disable filtering (if needed)
 verse-parse-source \
