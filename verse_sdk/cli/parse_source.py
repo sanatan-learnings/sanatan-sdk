@@ -29,6 +29,30 @@ FRONTMATTER_PATTERNS = [
 
 VALID_CHAR_PATTERN = re.compile(r"[\u0900-\u097F\u0966-\u096F\w\s\.,;:'\"()\[\]\-—–!?/]+")
 
+PROFILE_DEFAULTS = {
+    "default": {
+        "min_devanagari": 6,
+        "require_danda": False,
+        "drop_prose": False,
+        "prose_max_words": 28,
+        "extra_frontmatter_patterns": [],
+    },
+    "srimad-bhagavat": {
+        "min_devanagari": 10,
+        "require_danda": True,
+        "drop_prose": True,
+        "prose_max_words": 18,
+        "noise_threshold": 0.55,
+        "frontmatter_max_lines": 500,
+        "extra_frontmatter_patterns": [
+            re.compile(r"\b(edition|press|publisher|publication)\b", re.IGNORECASE),
+            re.compile(r"\b(email|website|www\.|http)\b", re.IGNORECASE),
+            re.compile(r"\b(phone|mobile|whatsapp|fax)\b", re.IGNORECASE),
+            re.compile(r"\b(address|printed at|printed by)\b", re.IGNORECASE),
+        ],
+    },
+}
+
 
 def _normalize_text(text: str) -> str:
     text = text.strip()
@@ -65,11 +89,12 @@ def _detect_chapter(line: str) -> Optional[int]:
     return None
 
 
-def _is_frontmatter_line(line: str) -> bool:
+def _is_frontmatter_line(line: str, profile: dict) -> bool:
     stripped = line.strip()
     if not stripped:
         return False
-    return any(pattern.search(stripped) for pattern in FRONTMATTER_PATTERNS)
+    patterns = FRONTMATTER_PATTERNS + profile.get("extra_frontmatter_patterns", [])
+    return any(pattern.search(stripped) for pattern in patterns)
 
 
 def _noise_score(line: str) -> float:
@@ -82,15 +107,30 @@ def _noise_score(line: str) -> float:
     return 1.0 - (valid / total)
 
 
-def _is_verse_candidate(line: str) -> bool:
+def _is_verse_candidate(line: str, profile: dict) -> bool:
     stripped = line.strip()
     if not stripped:
         return False
     devanagari_chars = len(re.findall(r"[\u0900-\u097F]", stripped))
-    if devanagari_chars >= 6:
+    min_devanagari = profile.get("min_devanagari", 6)
+    if devanagari_chars >= min_devanagari:
+        if profile.get("require_danda"):
+            return "।" in stripped or "॥" in stripped
         return True
     letters = len(re.findall(r"[A-Za-z]", stripped))
     return letters >= 12
+
+
+def _is_prose_line(line: str, profile: dict) -> bool:
+    if not profile.get("drop_prose"):
+        return False
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if "।" in stripped or "॥" in stripped:
+        return False
+    words = stripped.split()
+    return len(words) >= profile.get("prose_max_words", 28)
 
 
 def _filter_lines(
@@ -100,11 +140,18 @@ def _filter_lines(
     filter_ocr_noise: bool,
     frontmatter_max_lines: int,
     noise_threshold: float,
+    profile: dict,
 ) -> Tuple[List[str], Dict[str, int]]:
     stats = {
         "lines_scanned": len(lines),
         "lines_frontmatter_dropped": 0,
         "lines_noise_dropped": 0,
+        "lines_prose_dropped": 0,
+    }
+    samples = {
+        "frontmatter": [],
+        "noise": [],
+        "prose": [],
     }
 
     filtered = lines[:]
@@ -114,7 +161,7 @@ def _filter_lines(
         first_content_idx = None
         for idx in range(scan_limit):
             line = filtered[idx]
-            if _detect_chapter(line) is not None or _is_verse_candidate(line):
+            if _detect_chapter(line) is not None or _is_verse_candidate(line, profile):
                 first_content_idx = idx
                 break
 
@@ -130,12 +177,14 @@ def _filter_lines(
         frontmatter_done = False
         for line in filtered:
             if not frontmatter_done:
-                if _detect_chapter(line) is not None or _is_verse_candidate(line):
+                if _detect_chapter(line) is not None or _is_verse_candidate(line, profile):
                     frontmatter_done = True
                     cleaned.append(line)
                     continue
-                if _is_frontmatter_line(line):
+                if _is_frontmatter_line(line, profile):
                     stats["lines_frontmatter_dropped"] += 1
+                    if len(samples["frontmatter"]) < 5:
+                        samples["frontmatter"].append(line.strip())
                     continue
             cleaned.append(line)
         filtered = cleaned
@@ -151,11 +200,24 @@ def _filter_lines(
                 continue
             if _noise_score(line) >= noise_threshold:
                 stats["lines_noise_dropped"] += 1
+                if len(samples["noise"]) < 5:
+                    samples["noise"].append(line.strip())
                 continue
             cleaned.append(line)
         filtered = cleaned
 
-    return filtered, stats
+    if profile.get("drop_prose"):
+        cleaned = []
+        for line in filtered:
+            if _is_prose_line(line, profile):
+                stats["lines_prose_dropped"] += 1
+                if len(samples["prose"]) < 5:
+                    samples["prose"].append(line.strip())
+                continue
+            cleaned.append(line)
+        filtered = cleaned
+
+    return filtered, {**stats, "samples": samples}
 
 
 def _split_verses(lines: List[str]) -> List[str]:
@@ -185,6 +247,7 @@ def _parse_plain(
     filter_ocr_noise: bool,
     frontmatter_max_lines: int,
     noise_threshold: float,
+    profile: dict,
 ) -> Tuple[List[Tuple[Optional[int], str]], Dict[str, int]]:
     entries: List[Tuple[Optional[int], str]] = []
     current_chapter: Optional[int] = None
@@ -203,9 +266,16 @@ def _parse_plain(
             filter_ocr_noise=filter_ocr_noise,
             frontmatter_max_lines=frontmatter_max_lines,
             noise_threshold=noise_threshold,
+            profile=profile,
         )
         for key in stats:
             stats[key] += file_stats.get(key, 0)
+        stats.setdefault("samples", {})
+        for sample_key, sample_values in file_stats.get("samples", {}).items():
+            stats["samples"].setdefault(sample_key, [])
+            for value in sample_values:
+                if len(stats["samples"][sample_key]) < 5:
+                    stats["samples"][sample_key].append(value)
 
         if chaptered:
             buffer: List[str] = []
@@ -271,6 +341,7 @@ def main():
     parser.add_argument("--source-dir", help="Directory containing source files")
     parser.add_argument("--source-glob", default="**/*.txt", help="Glob for source files under --source-dir")
     parser.add_argument("--format", default="devanagari-plain", choices=["devanagari-plain", "chaptered-plain"])
+    parser.add_argument("--profile", default="default", choices=list(PROFILE_DEFAULTS.keys()))
     parser.add_argument("--output", help="Output YAML path (default: data/verses/<collection>.yaml)")
     parser.add_argument("--dry-run", action="store_true", help="Print summary without writing output")
     parser.add_argument("--diff", action="store_true", help="Show unified diff if output changes")
@@ -279,6 +350,8 @@ def main():
     parser.add_argument("--frontmatter-max-lines", type=int, default=300)
     parser.add_argument("--noise-threshold", type=float, default=0.65)
     parser.add_argument("--report", help="Write parse report JSON to this path")
+    parser.add_argument("--expected-count-min", type=int, help="Warn if parsed verses drop below this count")
+    parser.add_argument("--expected-count-max", type=int, help="Warn if parsed verses exceed this count")
 
     args = parser.parse_args()
 
@@ -288,7 +361,17 @@ def main():
         print(f"Error: {exc}")
         sys.exit(1)
 
+    def _arg_provided(flag: str) -> bool:
+        return any(arg == flag or arg.startswith(flag + "=") for arg in sys.argv[1:])
+
     chaptered = args.format == "chaptered-plain"
+    profile = PROFILE_DEFAULTS.get(args.profile, PROFILE_DEFAULTS["default"])
+
+    if not _arg_provided("--noise-threshold") and "noise_threshold" in profile:
+        args.noise_threshold = profile["noise_threshold"]
+    if not _arg_provided("--frontmatter-max-lines") and "frontmatter_max_lines" in profile:
+        args.frontmatter_max_lines = profile["frontmatter_max_lines"]
+
     filter_frontmatter = args.filter_frontmatter.lower() == "true"
     filter_ocr_noise = args.filter_ocr_noise.lower() == "true"
 
@@ -299,6 +382,7 @@ def main():
         filter_ocr_noise=filter_ocr_noise,
         frontmatter_max_lines=args.frontmatter_max_lines,
         noise_threshold=args.noise_threshold,
+        profile=profile,
     )
     data = _build_yaml(entries, args.collection, chaptered=chaptered)
     rendered = _render_yaml(data)
@@ -321,7 +405,13 @@ def main():
     print(f"Lines scanned: {stats['lines_scanned']}")
     print(f"Front-matter lines dropped: {stats['lines_frontmatter_dropped']}")
     print(f"OCR/noise lines dropped: {stats['lines_noise_dropped']}")
+    print(f"Prose/commentary lines dropped: {stats.get('lines_prose_dropped', 0)}")
     print(f"Output: {output_path}")
+
+    if args.expected_count_min and total < args.expected_count_min:
+        print(f"Warning: parsed verse count {total} is below expected minimum {args.expected_count_min}")
+    if args.expected_count_max and total > args.expected_count_max:
+        print(f"Warning: parsed verse count {total} exceeds expected maximum {args.expected_count_max}")
 
     if args.report:
         report_path = Path(args.report)
@@ -330,6 +420,7 @@ def main():
             "collection": args.collection,
             "files": [str(p) for p in files],
             "format": args.format,
+            "profile": args.profile,
             "filter_frontmatter": filter_frontmatter,
             "filter_ocr_noise": filter_ocr_noise,
             "frontmatter_max_lines": args.frontmatter_max_lines,
@@ -338,6 +429,8 @@ def main():
             "lines_scanned": stats["lines_scanned"],
             "lines_frontmatter_dropped": stats["lines_frontmatter_dropped"],
             "lines_noise_dropped": stats["lines_noise_dropped"],
+            "lines_prose_dropped": stats.get("lines_prose_dropped", 0),
+            "samples": stats.get("samples", {}),
         }
         report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
         print(f"Wrote report: {report_path}")

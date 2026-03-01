@@ -22,6 +22,7 @@ For the full lifecycle from initialization to deployment, see `docs/end-to-end-w
 - `--source-dir DIR` - Directory containing source files
 - `--source-glob GLOB` - Glob for source files under `--source-dir` (default: `**/*.txt`)
 - `--format {devanagari-plain,chaptered-plain}` - Parsing mode (default: `devanagari-plain`)
+- `--profile {default,srimad-bhagavat}` - Parser profile for corpus-specific heuristics
 - `--output PATH` - Output YAML path (default: `data/verses/<collection>.yaml`)
 - `--dry-run` - Print summary without writing output
 - `--diff` - Show unified diff if output changes
@@ -30,6 +31,8 @@ For the full lifecycle from initialization to deployment, see `docs/end-to-end-w
 - `--frontmatter-max-lines N` - Max initial lines to scan for front-matter (default: `300`)
 - `--noise-threshold N` - Noise threshold from `0.0` to `1.0` (default: `0.65`)
 - `--report PATH` - Write parse report JSON
+- `--expected-count-min N` - Warn if verse count is below this value
+- `--expected-count-max N` - Warn if verse count exceeds this value
 
 ## Formats
 
@@ -66,6 +69,15 @@ verse-parse-source \
   --collection hanuman-chalisa \
   --source data/source-texts/hanuman-chalisa.txt \
   --dry-run --diff --report parse-report.json
+
+# Srimad Bhagavat profile with guardrails
+verse-parse-source \
+  --collection srimad-bhagavat \
+  --source-dir data/source-texts/srimad-bhagavat \
+  --source-glob "volume-*/**/*.txt" \
+  --profile srimad-bhagavat \
+  --expected-count-min 16000 \
+  --expected-count-max 20000
 
 # Disable filtering (if needed)
 verse-parse-source \
