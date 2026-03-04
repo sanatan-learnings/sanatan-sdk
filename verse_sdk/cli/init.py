@@ -477,36 +477,6 @@ def create_example_collection(base_path: Path, collection: str, num_verses: int 
     collection_dir = base_path / "_verses" / collection
     collection_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create sample verse files
-    for i in range(1, num_verses + 1):
-        sample_verse = collection_dir / f"verse-{i:02d}.md"
-        if not sample_verse.exists():
-            sample_content = f"""---
-verse_number: {i}
-verse_id: verse-{i:02d}
-permalink: /{collection}/verse-{i:02d}/
----
-
-# Verse {i}
-
-## Devanagari
-[Add Devanagari text here]
-
-## Transliteration
-[Add transliteration here]
-
-## Meaning
-[Add word-by-word meaning here]
-
-## Translation
-[Add English translation here]
-
-## Story & Context
-[Add story and context here]
-"""
-            sample_verse.write_text(sample_content)
-            print(f"✓ Created _verses/{collection}/verse-{i:02d}.md")
-
     # Create canonical verse YAML file
     verses_yaml = base_path / "data" / "verses" / f"{collection}.yaml"
     verses_yaml.parent.mkdir(parents=True, exist_ok=True)
@@ -595,7 +565,7 @@ scenes: {{}}
         )
         print(f"✓ Created {collection}/index.md")
 
-    print(f"\n✅ Collection '{collection}' created with {num_verses} sample verses")
+    print(f"\n✅ Collection '{collection}' initialized (canonical placeholders: {num_verses})")
 
 
 def print_collection_next_steps(collection: str, num_verses: int, additional_collections: int = 0) -> None:

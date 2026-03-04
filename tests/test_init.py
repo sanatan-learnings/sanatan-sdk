@@ -131,13 +131,13 @@ def test_index_page_has_jekyll_frontmatter(tmp_path):
 # create_example_collection
 # ---------------------------------------------------------------------------
 
-def test_creates_verse_files(tmp_path):
+def test_does_not_create_sample_verse_markdown_files(tmp_path):
     create_directory_structure(tmp_path)
     create_template_files(tmp_path, "test")
     create_example_collection(tmp_path, "hanuman-chalisa", num_verses=3)
     for i in range(1, 4):
         f = tmp_path / "_verses" / "hanuman-chalisa" / f"verse-{i:02d}.md"
-        assert f.exists(), f"Missing: {f.name}"
+        assert not f.exists(), f"Unexpected sample verse markdown: {f.name}"
 
 
 def test_creates_canonical_yaml(tmp_path):
@@ -214,9 +214,9 @@ def test_custom_num_verses(tmp_path):
     create_directory_structure(tmp_path)
     create_template_files(tmp_path, "test")
     create_example_collection(tmp_path, "test-collection", num_verses=5)
-    for i in range(1, 6):
-        assert (tmp_path / "_verses" / "test-collection" / f"verse-{i:02d}.md").exists()
-    assert not (tmp_path / "_verses" / "test-collection" / "verse-06.md").exists()
+    content = (tmp_path / "data" / "verses" / "test-collection.yaml").read_text()
+    assert "    - verse-05" in content
+    assert "    - verse-06" not in content
 
 
 def test_project_next_steps_with_collection_are_consolidated_and_concrete(tmp_path, monkeypatch, capsys):
@@ -252,7 +252,7 @@ def test_collection_next_steps_mentions_canonical_first_optional_theme_and_flow(
     create_example_collection(tmp_path, "shiv-puran", num_verses=3)
 
     out = capsys.readouterr().out
-    assert "Collection 'shiv-puran' created with 3 sample verses" in out
+    assert "Collection 'shiv-puran' initialized (canonical placeholders: 3)" in out
     assert "📝 Next steps:" not in out
 
 
@@ -272,7 +272,7 @@ def test_issue_73_no_duplicate_next_steps_sections(tmp_path, monkeypatch, capsys
 
     out = capsys.readouterr().out
     assert out.count("📝 Next steps:") == 1
-    assert "✅ Collection 'shiv-puran' created with 3 sample verses\n   Next steps:" not in out
+    assert "✅ Collection 'shiv-puran' initialized (canonical placeholders: 3)\n   Next steps:" not in out
     assert "1. Copy .env.example to .env and add your API keys" not in out
     assert "2. Follow the collection-specific next steps shown above." not in out
 

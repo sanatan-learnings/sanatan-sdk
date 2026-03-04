@@ -18,7 +18,7 @@ The `verse-init` command scaffolds a new verse collection project with the recom
 
 - `--project-name NAME` - Create project in new subdirectory with given name
 - `--collection NAME` - Create collection with template files (can be used multiple times)
-- `--num-verses N` - Number of sample verses per collection (default: 3)
+- `--num-verses N` - Number of canonical placeholder verse IDs per collection (default: 3)
 - `--minimal` - Create minimal structure without example files
 
 ## Examples
@@ -72,7 +72,7 @@ verse-init --collection sundar-kaand --collection bhagavad-gita
 ### Initialize with Collections
 
 ```bash
-# Single collection with 3 sample verses (default)
+# Single collection with 3 canonical placeholders (default)
 verse-init --collection hanuman-chalisa
 
 # Single collection with custom number of verses
@@ -88,11 +88,11 @@ verse-init --project-name my-project \
 ```
 
 **What gets created for each collection:**
-- ✅ Sample verse files: `_verses/<collection>/verse-01.md`, `verse-02.md`, etc.
 - ✅ Canonical text template: `data/verses/<collection>.yaml`
 - ✅ Source text placeholder: `data/sources/<collection>.txt`
 - ✅ Sample theme: `data/themes/<collection>/modern-minimalist.yml`
 - ✅ Scene descriptions template: `data/scenes/<collection>.yml`
+- ✅ Collection landing page: `<collection>/index.md`
 - ✅ Collection entry in `_data/collections.yml`
 
 ## Created Structure
