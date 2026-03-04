@@ -43,7 +43,16 @@ def test_idempotent(tmp_path):
 def test_creates_required_files(tmp_path):
     create_directory_structure(tmp_path)
     create_template_files(tmp_path, "my-project")
-    for f in [".env.example", "_data/collections.yml", "_data/verse-config.yml", ".gitignore", "Gemfile", "README.md"]:
+    for f in [
+        ".env.example",
+        "_data/collections.yml",
+        "_data/verse-config.yml",
+        ".gitignore",
+        "Gemfile",
+        "_config.yml",
+        "index.md",
+        "README.md",
+    ]:
         assert (tmp_path / f).exists(), f"Missing file: {f}"
 
 
@@ -89,6 +98,14 @@ def test_gemfile_includes_jekyll(tmp_path):
     create_template_files(tmp_path, "my-project")
     content = (tmp_path / "Gemfile").read_text()
     assert 'gem "jekyll"' in content
+
+
+def test_index_page_has_jekyll_frontmatter(tmp_path):
+    create_directory_structure(tmp_path)
+    create_template_files(tmp_path, "my-project")
+    content = (tmp_path / "index.md").read_text()
+    assert content.startswith("---\n")
+    assert "layout: default" in content
 
 
 # ---------------------------------------------------------------------------

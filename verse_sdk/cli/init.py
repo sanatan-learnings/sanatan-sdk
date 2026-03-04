@@ -169,6 +169,40 @@ Verse collection project powered by [Sanatan Verse SDK](https://github.com/sanat
 MIT
 """
 
+JEKYLL_CONFIG_TEMPLATE = """title: "{project_name}"
+description: "Verse collection project powered by Sanatan Verse SDK"
+markdown: kramdown
+theme: minima
+exclude:
+  - README.md
+  - venv/
+  - .venv/
+"""
+
+INDEX_MD_TEMPLATE = """---
+layout: default
+title: {project_name}
+---
+
+# {project_name}
+
+This project was initialized with `verse-init`.
+
+## Quick Links
+
+- Collection registry: `_data/collections.yml`
+- Canonical text: `data/verses/`
+- Source text: `data/sources/`
+- Verse markdown: `_verses/`
+
+## Next Steps
+
+1. Copy `.env.example` to `.env` and add API keys.
+2. Add canonical source text to `data/sources/<collection>.txt`.
+3. Run `verse-parse-source --collection <collection-key>`.
+4. Generate first verse with `verse-generate --collection <collection-key> --verse 1 --regenerate-content`.
+"""
+
 EXAMPLE_THEME_YML = """name: Modern Minimalist
 description: Clean, minimal design with spiritual focus
 
@@ -237,6 +271,8 @@ def create_template_files(base_path: Path, project_name: str, minimal: bool = Fa
         "_data/verse-config.yml": VERSE_CONFIG_CONTENT,
         ".gitignore": GITIGNORE_CONTENT,
         "Gemfile": GEMFILE_CONTENT,
+        "_config.yml": JEKYLL_CONFIG_TEMPLATE.format(project_name=project_name),
+        "index.md": INDEX_MD_TEMPLATE.format(project_name=project_name),
         "README.md": README_TEMPLATE.format(project_name=project_name),
     }
 
