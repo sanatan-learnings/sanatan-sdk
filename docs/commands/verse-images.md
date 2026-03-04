@@ -5,19 +5,25 @@ Generate images for verses using DALL-E 3 based on scene descriptions.
 ## Synopsis
 
 ```bash
-verse-images --collection COLLECTION --theme THEME [OPTIONS]
+verse-images [--collection COLLECTION] [--theme THEME] [OPTIONS]
 ```
 
 ## Description
 
-The `verse-images` command generates artwork for verses using OpenAI's DALL-E 3 API. It reads scene descriptions from `data/scenes/<collection-key>.md` and creates images styled according to a theme configuration.
+The `verse-images` command generates artwork for verses using OpenAI's DALL-E 3 API. It reads scene descriptions from `data/scenes/<collection-key>.yml` and creates images styled according to a theme configuration.
 
 ## Options
 
-### Required
+### Collection and Theme Selection
 
 - `--collection NAME` - Collection key (e.g., `hanuman-chalisa`, `sundar-kaand`)
 - `--theme NAME` - Theme name (must have corresponding `data/themes/<collection-key>/<theme-name>.yml`)
+
+`--collection` and `--theme` are optional when unambiguous:
+
+- If exactly one collection exists/enabled, `verse-images` auto-selects it.
+- If exactly one theme exists for the collection (or a single configured default theme is set), `verse-images` auto-selects it.
+- If multiple choices exist, command exits with a clear error listing choices and asks for explicit flags.
 
 ### Optional
 
@@ -41,6 +47,15 @@ verse-images --collection hanuman-chalisa --theme modern-minimalist
 ```
 
 This reads all scene descriptions from `data/scenes/hanuman-chalisa.md` and generates images that don't already exist.
+This reads all scene descriptions from `data/scenes/hanuman-chalisa.yml` and generates images that don't already exist.
+
+### Generate with Auto-Selection (Single Collection + Theme)
+
+```bash
+verse-images --verse title-page
+```
+
+Works when collection and theme are unambiguous in project config/files.
 
 ### Generate Specific Verse
 
@@ -108,21 +123,22 @@ Example paths:
 
 ## Scene Descriptions
 
-Scene descriptions are stored per collection in `data/scenes/<collection-key>.md`:
+Scene descriptions are stored per collection in `data/scenes/<collection-key>.yml`:
 
-```markdown
-### Verse 1
-
-**Scene Description**:
-Lord Hanuman standing majestically at the entrance of a serene temple, bathed
-in the golden light of dawn. His form radiates divine energy with a gentle
-glow surrounding him. He holds a gada (mace) in one hand while the other is
-raised in blessing. [...]
+```yaml
+scenes:
+  verse-01:
+    title: Verse 1
+    description: |
+      Lord Hanuman standing majestically at the entrance of a serene temple, bathed
+      in the golden light of dawn. His form radiates divine energy with a gentle
+      glow surrounding him. He holds a gada (mace) in one hand while the other is
+      raised in blessing.
 ```
 
 Example paths:
-- `data/scenes/hanuman-chalisa.md`
-- `data/scenes/sundar-kaand.md`
+- `data/scenes/hanuman-chalisa.yml`
+- `data/scenes/sundar-kaand.yml`
 
 ### Writing Good Scene Descriptions
 
@@ -159,7 +175,7 @@ quality: standard
 style: natural
 EOF
 
-# 2. Add scene descriptions to data/scenes/hanuman-chalisa.md
+# 2. Add scene descriptions to data/scenes/hanuman-chalisa.yml
 # (Must be created manually with scene descriptions for each verse)
 
 # 3. Generate images
@@ -184,7 +200,7 @@ For 700 verses (complete Bhagavad Gita):
 ## Requirements
 
 - `OPENAI_API_KEY` environment variable
-- Scene descriptions in `data/scenes/<collection-key>.md`
+- Scene descriptions in `data/scenes/<collection-key>.yml`
 - Theme configuration in `data/themes/<collection-key>/<theme-name>.yml`
 - Collection enabled in `_data/collections.yml`
 
