@@ -30,6 +30,8 @@ import time
 from pathlib import Path
 from typing import Dict, Optional
 
+from verse_sdk.utils.credentials import has_dotenv_support, resolve_api_key
+
 try:
     from elevenlabs import VoiceSettings
     from elevenlabs.client import ElevenLabs
@@ -38,16 +40,6 @@ except ImportError:
     print("Error: elevenlabs package not installed")
     print("Install with: pip install elevenlabs")
     sys.exit(1)
-
-try:
-    from dotenv import load_dotenv
-except ImportError:
-    print("Error: python-dotenv package not installed")
-    print("Install with: pip install python-dotenv")
-    sys.exit(1)
-
-# Load environment variables
-load_dotenv()
 
 # Project paths
 # Use current working directory (where the user runs the command)
@@ -541,6 +533,11 @@ def main():
         action="store_true",
         help="List available collections and exit"
     )
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        help="ElevenLabs API key (precedence: --api-key > ELEVENLABS_API_KEY env > .env fallback)",
+    )
 
     args = parser.parse_args()
 
@@ -553,13 +550,22 @@ def main():
     if not args.collection:
         parser.error("--collection is required")
 
-    # Check for API key
-    api_key = os.getenv("ELEVENLABS_API_KEY")
-    if not api_key or api_key == "your-api-key-here":
+    # Resolve API key with consistent precedence.
+    api_key = resolve_api_key(
+        "ELEVENLABS_API_KEY",
+        explicit_key=args.api_key,
+        project_dir=PROJECT_DIR,
+        placeholder_values={"your-api-key-here"},
+    )
+    if not api_key:
         print("Error: ELEVENLABS_API_KEY not set")
         print("\nSet your API key by either:")
-        print("  1. export ELEVENLABS_API_KEY='your-key-here'")
-        print("  2. Create .env file with: ELEVENLABS_API_KEY=your-key-here")
+        print("  1. --api-key argument")
+        print("  2. export ELEVENLABS_API_KEY='your-key-here'")
+        print("  3. Create .env file with: ELEVENLABS_API_KEY=your-key-here")
+        if not has_dotenv_support():
+            print("\nNote: .env fallback requires python-dotenv.")
+            print("Install with: pip install python-dotenv")
         print("\nGet your API key from: https://elevenlabs.io/app/settings/api-keys")
         sys.exit(1)
 

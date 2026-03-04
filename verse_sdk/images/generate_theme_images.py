@@ -39,15 +39,12 @@ import requests
 from openai import OpenAI
 from PIL import Image
 
+from verse_sdk.utils.credentials import has_dotenv_support, resolve_api_key
+
 try:
     import yaml
 except ImportError:
     yaml = None
-
-try:
-    from dotenv import load_dotenv
-except ImportError:
-    load_dotenv = None
 
 # Configuration
 # Use current working directory (where the user runs the command)
@@ -73,21 +70,11 @@ def resolve_openai_api_key(cli_api_key: Optional[str] = None, project_dir: Path 
     2) exported environment variable
     3) .env fallback
     """
-    if cli_api_key:
-        return cli_api_key
-
-    env_key = os.environ.get("OPENAI_API_KEY")
-    if env_key:
-        return env_key
-
-    if load_dotenv:
-        dotenv_path = project_dir / ".env"
-        if dotenv_path.exists():
-            load_dotenv(dotenv_path=dotenv_path, override=False)
-        else:
-            load_dotenv(override=False)
-
-    return os.environ.get("OPENAI_API_KEY")
+    return resolve_api_key(
+        "OPENAI_API_KEY",
+        explicit_key=cli_api_key,
+        project_dir=project_dir,
+    )
 
 
 class ImageGenerator:
@@ -723,7 +710,7 @@ Cost Estimate:
         print("  1. --api-key argument")
         print("  2. OPENAI_API_KEY environment variable")
         print("  3. .env file with OPENAI_API_KEY=...")
-        if load_dotenv is None:
+        if not has_dotenv_support():
             print("\nNote: .env fallback requires python-dotenv.")
             print("Install with: pip install python-dotenv")
         print("\nExample:")

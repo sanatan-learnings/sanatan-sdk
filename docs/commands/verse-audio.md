@@ -23,6 +23,7 @@ The `verse-audio` command generates pronunciation audio files using ElevenLabs' 
 ### Optional
 
 - `--verse ID` - Generate audio for specific verse only
+- `--api-key KEY` - ElevenLabs API key (precedence: `--api-key` > `ELEVENLABS_API_KEY` env > `.env` fallback)
 - `--voice-id ID` - ElevenLabs voice ID (default: pre-configured voice)
 - `--regenerate FILE[,FILE...]` - Regenerate specific audio files
 - `--force` - Regenerate all audio files (prompts for confirmation)
@@ -149,7 +150,10 @@ Very affordable compared to image generation.
 
 ## Requirements
 
-- `ELEVENLABS_API_KEY` environment variable
+- ElevenLabs API key resolution precedence:
+  - `--api-key` flag
+  - `ELEVENLABS_API_KEY` exported environment variable
+  - `.env` fallback (`ELEVENLABS_API_KEY=...`)
 - Verse files in `_verses/<collection-key>/` with `devanagari:` field populated
 - Collection enabled in `_data/collections.yml`
 - ElevenLabs account with sufficient credits
