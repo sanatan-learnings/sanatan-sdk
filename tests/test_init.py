@@ -7,6 +7,7 @@ from verse_sdk.cli.init import (
     create_example_collection,
     create_template_files,
     init_project,
+    main as init_main,
 )
 
 # ---------------------------------------------------------------------------
@@ -232,3 +233,14 @@ def test_issue_73_no_duplicate_next_steps_sections(tmp_path, monkeypatch, capsys
     assert "✅ Collection 'shiv-puran' created with 3 sample verses\n   Next steps:" not in out
     assert "1. Copy .env.example to .env and add your API keys" not in out
     assert "2. Follow the collection-specific next steps shown above." not in out
+
+
+def test_issue_74_cli_output_uses_default_first_generation_command(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("sys.argv", ["verse-init", "--collection", "shiv-puran"])
+
+    init_main()
+
+    out = capsys.readouterr().out
+    assert "verse-generate --collection shiv-puran --verse 1" in out
+    assert "verse-generate --collection shiv-puran --verse 1 --regenerate-content" not in out
