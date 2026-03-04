@@ -27,6 +27,7 @@ Requirements:
 """
 
 import argparse
+import io
 import os
 import re
 import sys
@@ -36,6 +37,7 @@ from typing import Dict, List, Optional
 
 import requests
 from openai import OpenAI
+from PIL import Image
 
 try:
     import yaml
@@ -189,10 +191,16 @@ class ImageGenerator:
         """
         output_path = self.output_dir / filename
 
-        # Skip if file already exists
-        if output_path.exists():
+        # Skip if a valid file already exists; regenerate if stale/invalid.
+        if output_path.exists() and _is_valid_image_file(output_path):
             print(f"⊙ Skipping {filename} (already exists)")
             return True
+        elif output_path.exists():
+            print(f"⚠ Found invalid image file for {filename}; regenerating.")
+            try:
+                output_path.unlink()
+            except OSError:
+                pass
 
         full_prompt = self.build_full_prompt(prompt)
 
@@ -213,11 +221,11 @@ class ImageGenerator:
 
                 # Download the image
                 image_url = response.data[0].url
-                image_data = requests.get(image_url).content
+                download = requests.get(image_url, timeout=60)
+                download.raise_for_status()
+                image_data = download.content
 
-                # Save the image
-                with open(output_path, 'wb') as f:
-                    f.write(image_data)
+                _write_image_atomic(output_path, image_data)
 
                 file_size = len(image_data) / 1024  # KB
                 print(f"✓ Generated {filename} ({file_size:.1f} KB)")
@@ -235,6 +243,7 @@ class ImageGenerator:
                     time.sleep(wait_time)
 
         return False
+
 
     def generate_all_images(self, start_from: Optional[str] = None, specific_verse: Optional[str] = None) -> None:
         """
@@ -331,6 +340,48 @@ class ImageGenerator:
             print("2. Update _data/themes.yml with your new theme")
             print("3. Test the theme on your local Jekyll site")
             print("4. Commit and push to GitHub")
+
+
+def _validate_image_bytes(image_data: bytes) -> None:
+    """Raise ValueError if image bytes are empty or not decodable."""
+    if not image_data:
+        raise ValueError("Image payload is empty")
+
+    try:
+        with Image.open(io.BytesIO(image_data)) as img:
+            img.verify()
+    except Exception as exc:
+        raise ValueError(f"Downloaded image payload is invalid: {exc}") from exc
+
+
+def _is_valid_image_file(path: Path) -> bool:
+    """Check whether an on-disk image file is non-empty and decodable."""
+    if not path.exists() or path.stat().st_size <= 0:
+        return False
+    try:
+        with Image.open(path) as img:
+            img.verify()
+        return True
+    except Exception:
+        return False
+
+
+def _write_image_atomic(output_path: Path, image_data: bytes) -> None:
+    """Write image bytes atomically after validation."""
+    _validate_image_bytes(image_data)
+    tmp_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    try:
+        with open(tmp_path, 'wb') as f:
+            f.write(image_data)
+        if not _is_valid_image_file(tmp_path):
+            raise ValueError(f"Atomic write validation failed for {tmp_path.name}")
+        tmp_path.replace(output_path)
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
 
 
 def validate_collection(collection: str, project_dir: Path = PROJECT_DIR) -> bool:
