@@ -387,29 +387,29 @@ def test_project_next_steps_with_collection_are_consolidated_and_concrete(tmp_pa
     assert "1. Configure environment before generation:" in out
     assert "cp .env.example .env" in out
     assert "Set OPENAI_API_KEY (and ELEVENLABS_API_KEY if generating audio)" in out
-    assert "Then generate collection title/card images explicitly (quick validation):" in out
+    assert "Optional: customize theme in data/themes/shiv-puran/modern-minimalist.yml" in out
+    assert "verse-generate --collection shiv-puran --verse 1" in out
+    assert "verse-generate --collection shiv-puran --verse 1 --regenerate-content" not in out
+    assert "6. Then generate collection title/card images explicitly (quick validation):" in out
     assert "verse-images --verse title-page" in out
     assert "verse-images --verse card-page" in out
     assert "verse-images --collection shiv-puran --theme modern-minimalist --verse title-page" in out
     assert "verse-images --collection shiv-puran --theme modern-minimalist --verse card-page" in out
-    assert "Optional: customize theme in data/themes/shiv-puran/modern-minimalist.yml" in out
-    assert "verse-generate --collection shiv-puran --verse 1" in out
-    assert "verse-generate --collection shiv-puran --verse 1 --regenerate-content" not in out
     assert "Collection title/card images are auto-generated when missing." in out
     assert "bundle install" in out
     assert "bundle exec jekyll serve" in out
     assert out.index("bundle install") < out.index("bundle exec jekyll serve")
-    assert "✅ Core flow complete (steps 1-7)." in out
+    assert "✅ Core flow complete (steps 1-8)." in out
     assert "Optional next steps:" in out
-    assert out.index("bundle exec jekyll serve") < out.index("✅ Core flow complete (steps 1-7).")
-    assert out.index("✅ Core flow complete (steps 1-7).") < out.index("8. Optional next: generate full collection:")
-    assert "8. Optional next: generate full collection:" in out
+    assert out.index("bundle exec jekyll serve") < out.index("✅ Core flow complete (steps 1-8).")
+    assert out.index("✅ Core flow complete (steps 1-8).") < out.index("9. Optional next: generate full collection:")
+    assert "9. Optional next: generate full collection:" in out
     assert "verse-generate --collection shiv-puran --all" in out
     assert "verse-generate --collection shiv-puran --verse 1-3" in out
     assert "verse-generate --collection shiv-puran --next" in out
-    assert "9. Optional quality check: verse-validate" in out
-    assert "10. Optional advanced workflows: verse-embeddings / verse-index-sources / verse-puranic-context / verse-deploy" in out
-    assert "11. Docs for advanced workflows: https://github.com/sanatan-learnings/sanatan-verse-sdk/blob/main/docs/usage.md" in out
+    assert "10. Optional quality check: verse-validate" in out
+    assert "11. Optional advanced workflows: verse-embeddings / verse-index-sources / verse-puranic-context / verse-deploy" in out
+    assert "12. Docs for advanced workflows: https://github.com/sanatan-learnings/sanatan-verse-sdk/blob/main/docs/usage.md" in out
     assert "Follow the collection-specific next steps shown above" not in out
 
 
