@@ -7,6 +7,8 @@ from verse_sdk.cli.init import (
     create_example_collection,
     create_template_files,
     init_project,
+)
+from verse_sdk.cli.init import (
     main as init_main,
 )
 
