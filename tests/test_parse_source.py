@@ -152,3 +152,33 @@ def test_default_mode_auto_switches_to_chaptered_when_markers_present(tmp_path):
     keys = list(data.keys())
     assert any(k.startswith("chapter-01-") for k in keys)
     assert any(k.startswith("chapter-02-") for k in keys)
+
+
+def test_chaptered_parsing_drops_title_preamble_before_first_chapter(tmp_path):
+    source = tmp_path / "source.txt"
+    source.write_text(
+        "श्रीशिवमहापुराणमाहात्म्यम्\n"
+        "०.१. प्रथमोऽध्यायः । तन्महिमवर्णनम् ।\n"
+        "शौनक उवाच । हे हे सूत महाप्राज्ञ ।\n",
+        encoding="utf-8",
+    )
+
+    entries, _stats = _parse_plain(
+        [source],
+        chaptered=True,
+        filter_frontmatter=True,
+        filter_ocr_noise=False,
+        frontmatter_max_lines=300,
+        noise_threshold=0.65,
+        profile=PROFILE_DEFAULTS["default"],
+        start_marker=None,
+        start_marker_regex=None,
+        disable_start_anchor=True,
+        chapter_scope="global",
+        canto_regex=None,
+    )
+    data = _build_yaml(entries, "shiv-puran", chaptered=True)
+
+    first_key = next(iter(data))
+    assert first_key == "chapter-01-shloka-01"
+    assert data[first_key]["devanagari"] == "शौनक उवाच । हे हे सूत महाप्राज्ञ ।"

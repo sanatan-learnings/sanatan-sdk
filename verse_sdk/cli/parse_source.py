@@ -444,6 +444,24 @@ def _parse_plain(
         if file_stats.get("anchor", {}).get("anchor_found") and not anchor_info["anchor_found"]:
             anchor_info = file_stats["anchor"]
 
+        # In chaptered mode, discard leading preamble/title lines before the first chapter marker.
+        if chaptered:
+            first_chapter_idx = None
+            for idx, line in enumerate(filtered):
+                if _detect_chapter(line) is not None:
+                    first_chapter_idx = idx
+                    break
+
+            if first_chapter_idx is not None and first_chapter_idx > 0:
+                dropped_lines = [line for line in filtered[:first_chapter_idx] if line.strip()]
+                stats["lines_frontmatter_dropped"] += len(dropped_lines)
+                if dropped_lines:
+                    samples.setdefault("frontmatter", [])
+                    for value in dropped_lines:
+                        if len(samples["frontmatter"]) < 5:
+                            samples["frontmatter"].append(value.strip())
+                filtered = filtered[first_chapter_idx:]
+
         if chaptered:
             buffer: List[str] = []
             for line in filtered:
