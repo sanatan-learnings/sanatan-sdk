@@ -378,7 +378,7 @@ scenes:
 
     print(f"\n✅ Collection '{collection}' created with {num_verses} sample verses")
     print("   Next steps:")
-    print(f"   1. Parse canonical text from source:")
+    print("   1. Parse canonical text from source:")
     print(f"      verse-parse-source --collection {collection} --source <path-to-source-text>")
     print(f"      (or edit data/verses/{collection}.yaml manually)")
     print(f"   2. Review/edit verses in _verses/{collection}/")
