@@ -178,7 +178,80 @@ def get_collection_info(project_dir: Path, collection_key: str) -> dict:
     return collections[collection_key]
 
 
-def add_verses_to_yaml(project_dir: Path, collection_key: str, verse_numbers: List[int], custom_format: Optional[str] = None, chapter: Optional[int] = None, collection_info: Optional[dict] = None) -> Tuple[int, int, str]:
+def count_non_meta_verses(data: dict) -> int:
+    """Count non-metadata verse entries in canonical YAML data."""
+    return len([k for k in data.keys() if not k.startswith('_')])
+
+
+def sync_collection_total_verses(project_dir: Path, collection_key: str, total_verses: int) -> Tuple[bool, Optional[int], int]:
+    """
+    Sync total_verses for a collection in _data/collections.yml.
+
+    Preserves existing comments/formatting by editing only the target collection block.
+
+    Returns:
+        Tuple of (changed, previous_value, new_value)
+    """
+    collections_file = project_dir / "_data" / "collections.yml"
+    if not collections_file.exists():
+        return False, None, total_verses
+
+    text = collections_file.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
+
+    start_idx = None
+    for i, line in enumerate(lines):
+        if re.match(rf"^{re.escape(collection_key)}:\s*$", line.rstrip("\n")):
+            start_idx = i
+            break
+
+    if start_idx is None:
+        return False, None, total_verses
+
+    end_idx = len(lines)
+    for i in range(start_idx + 1, len(lines)):
+        stripped = lines[i].strip()
+        if stripped and not lines[i].startswith((" ", "\t", "#")):
+            end_idx = i
+            break
+
+    block_lines = lines[start_idx + 1:end_idx]
+    total_idx = None
+    old_value: Optional[int] = None
+    prop_indent = "  "
+
+    for j, line in enumerate(block_lines):
+        prop_match = re.match(r"^(\s+)\S", line)
+        if prop_match:
+            prop_indent = prop_match.group(1)
+            break
+
+    for j, line in enumerate(block_lines):
+        m = re.match(r"^(\s*)total_verses:\s*([0-9]+)\s*$", line.rstrip("\n"))
+        if m:
+            total_idx = j
+            old_value = int(m.group(2))
+            indent = m.group(1)
+            block_lines[j] = f"{indent}total_verses: {total_verses}\n"
+            break
+
+    if total_idx is None:
+        insert_at = len(block_lines)
+        for j in range(len(block_lines) - 1, -1, -1):
+            if block_lines[j].strip():
+                insert_at = j + 1
+                break
+        block_lines.insert(insert_at, f"{prop_indent}total_verses: {total_verses}\n")
+
+    new_lines = lines[:start_idx + 1] + block_lines + lines[end_idx:]
+    new_text = "".join(new_lines)
+    changed = new_text != text
+    if changed:
+        collections_file.write_text(new_text, encoding="utf-8")
+    return changed, old_value, total_verses
+
+
+def add_verses_to_yaml(project_dir: Path, collection_key: str, verse_numbers: List[int], custom_format: Optional[str] = None, chapter: Optional[int] = None, collection_info: Optional[dict] = None) -> Tuple[int, int, str, int]:
     """
     Add verse placeholders to canonical YAML file.
 
@@ -191,7 +264,7 @@ def add_verses_to_yaml(project_dir: Path, collection_key: str, verse_numbers: Li
         collection_info: Optional collection configuration from collections.yml
 
     Returns:
-        Tuple of (added_count, skipped_count, format_used)
+        Tuple of (added_count, skipped_count, format_used, canonical_total_verses)
     """
     yaml_files = [
         project_dir / "data" / "verses" / f"{collection_key}.yaml",
@@ -284,7 +357,8 @@ def add_verses_to_yaml(project_dir: Path, collection_key: str, verse_numbers: Li
                 if i < len(new_verses) - 1:
                     f.write("\n")
 
-    return added, skipped, format_used
+    canonical_total_verses = count_non_meta_verses(existing_verses) + added
+    return added, skipped, format_used, canonical_total_verses
 
 
 def create_markdown_files(project_dir: Path, collection_key: str, verse_numbers: List[int], verse_prefix: str, format_str: str, chapter: Optional[int] = None) -> Tuple[int, int]:
@@ -417,13 +491,20 @@ For more information:
         # Add to YAML
         print("Updating canonical YAML file:")
         custom_format = args.format if args.format != "verse-{:02d}" else None
-        yaml_added, yaml_skipped, format_used = add_verses_to_yaml(
+        yaml_added, yaml_skipped, format_used, canonical_total_verses = add_verses_to_yaml(
             project_dir,
             args.collection,
             verse_numbers,
             custom_format,
             chapter=args.chapter,
             collection_info=collection_info
+        )
+
+        # Keep collections metadata synchronized with canonical verse count.
+        total_changed, total_old, total_new = sync_collection_total_verses(
+            project_dir,
+            args.collection,
+            canonical_total_verses
         )
 
         # Parse format for markdown creation
@@ -463,6 +544,13 @@ For more information:
         print(f"   YAML entries added: {yaml_added}")
         if yaml_skipped > 0:
             print(f"   YAML entries skipped: {yaml_skipped} (already exist)")
+        if total_changed:
+            if total_old is None:
+                print(f"   collections.yml total_verses set: {total_new}")
+            else:
+                print(f"   collections.yml total_verses updated: {total_old} → {total_new}")
+        else:
+            print(f"   collections.yml total_verses already in sync: {total_new}")
         if args.markdown:
             print(f"   Markdown files created: {md_created}")
             if md_skipped > 0:
@@ -476,8 +564,7 @@ For more information:
                 print(f"   1. Edit data/verses/{args.collection}.yaml to add Devanagari text")
             if md_created > 0:
                 print(f"   2. Edit verse markdown files in _verses/{args.collection}/")
-            print(f"   {3 if md_created > 0 else 2}. Update total_verses in _data/collections.yml if needed")
-            print(f"   {4 if md_created > 0 else 3}. Generate content: verse-generate --collection {args.collection} --verse {verse_numbers[0]}")
+            print(f"   {3 if md_created > 0 else 2}. Generate content: verse-generate --collection {args.collection} --verse {verse_numbers[0]}")
             if not args.markdown:
                 print("   Note: verse-generate will auto-create markdown files from YAML")
             print()

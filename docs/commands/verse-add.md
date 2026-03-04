@@ -185,11 +185,7 @@ verse-add --collection hanuman-chalisa --verse 44-50
 #   verse-44:
 #     devanagari: 'तुलसी दास सदा हरि चेरा। कीजै नाथ हृदय महँ डेरा।।'
 
-# 3. Update collection configuration
-# Edit _data/collections.yml
-# Update total_verses: 50
-
-# 4. Generate content (auto-creates markdown + multimedia)
+# 3. Generate content (auto-creates markdown + multimedia)
 verse-generate --collection hanuman-chalisa --verse 44
 # This auto-creates _verses/hanuman-chalisa/verse-44.md
 # Plus images, audio, and embeddings
@@ -285,7 +281,7 @@ done
      devanagari: 'कर्मण्येवाधिकारस्ते मा फलेषु कदाचन...'
    ```
 
-2. **Update collections.yml** - Set correct `total_verses` count in `_data/collections.yml`
+2. **Collection metadata auto-sync** - `verse-add` automatically updates `total_verses` in `_data/collections.yml`
 
 3. **Generate content** - Run `verse-generate` to create markdown, images, audio, and embeddings:
    ```bash
@@ -330,7 +326,7 @@ verse-add --collection hanuman-chalisa
 
 4. **Validate After Adding**: Run `verse-validate` to check project structure
 
-5. **Update Metadata**: Update `total_verses` in `_data/collections.yml` after adding verses
+5. **Metadata is auto-synced**: `total_verses` in `_data/collections.yml` is updated automatically
 
 6. **Consistent Format**: The SDK auto-detects format, but ensure your first verses use the format you want:
    - `verse-01` for simple collections
