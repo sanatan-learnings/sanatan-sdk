@@ -171,13 +171,20 @@ cd my-verse-project
 cp .env.example .env
 # Edit .env and add your actual API keys
 
-# 3. Add canonical text
+# 3. Generate collection title/card images (after API keys are set)
+verse-images --verse title-page
+verse-images --verse card-page
+# Fallback when collection/theme is ambiguous:
+verse-images --collection hanuman-chalisa --theme modern-minimalist --verse title-page
+verse-images --collection hanuman-chalisa --theme modern-minimalist --verse card-page
+
+# 4. Add canonical text
 # Edit data/verses/hanuman-chalisa.yaml
 
-# 4. Validate
+# 5. Validate
 verse-validate
 
-# 5. Generate
+# 6. Generate
 verse-generate --collection hanuman-chalisa --verse 1
 ```
 
@@ -190,13 +197,20 @@ cd my-existing-project
 # 2. Add new collection
 verse-init --collection sundar-kaand --num-verses 60
 
-# 3. Add canonical text
+# 3. Generate collection title/card images (after API keys are set)
+verse-images --verse title-page
+verse-images --verse card-page
+# Fallback when collection/theme is ambiguous:
+verse-images --collection sundar-kaand --theme modern-minimalist --verse title-page
+verse-images --collection sundar-kaand --theme modern-minimalist --verse card-page
+
+# 4. Add canonical text
 # Edit data/verses/sundar-kaand.yaml
 
-# 4. Validate
+# 5. Validate
 verse-validate
 
-# 5. Generate
+# 6. Generate
 verse-generate --collection sundar-kaand --verse 1
 ```
 

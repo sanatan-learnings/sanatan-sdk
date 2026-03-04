@@ -387,6 +387,11 @@ def test_project_next_steps_with_collection_are_consolidated_and_concrete(tmp_pa
     assert "1. Configure environment before generation:" in out
     assert "cp .env.example .env" in out
     assert "Set OPENAI_API_KEY (and ELEVENLABS_API_KEY if generating audio)" in out
+    assert "Then generate collection title/card images explicitly (quick validation):" in out
+    assert "verse-images --verse title-page" in out
+    assert "verse-images --verse card-page" in out
+    assert "verse-images --collection shiv-puran --theme modern-minimalist --verse title-page" in out
+    assert "verse-images --collection shiv-puran --theme modern-minimalist --verse card-page" in out
     assert "Optional: customize theme in data/themes/shiv-puran/modern-minimalist.yml" in out
     assert "verse-generate --collection shiv-puran --verse 1" in out
     assert "verse-generate --collection shiv-puran --verse 1 --regenerate-content" not in out
