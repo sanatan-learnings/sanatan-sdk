@@ -304,6 +304,10 @@ def test_project_next_steps_with_collection_are_consolidated_and_concrete(tmp_pa
     assert "bundle install" in out
     assert "bundle exec jekyll serve" in out
     assert out.index("bundle install") < out.index("bundle exec jekyll serve")
+    assert "✅ Core flow complete (steps 1-7)." in out
+    assert "Optional next steps:" in out
+    assert out.index("bundle exec jekyll serve") < out.index("✅ Core flow complete (steps 1-7).")
+    assert out.index("✅ Core flow complete (steps 1-7).") < out.index("8. Optional next: generate full collection:")
     assert "8. Optional next: generate full collection:" in out
     assert "verse-generate --collection shiv-puran --all" in out
     assert "verse-generate --collection shiv-puran --verse 1-3" in out
