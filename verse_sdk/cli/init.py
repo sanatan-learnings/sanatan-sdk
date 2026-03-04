@@ -20,7 +20,6 @@ Usage:
 """
 
 import argparse
-import base64
 import os
 import re
 import sys
@@ -389,7 +388,7 @@ title: __PROJECT_NAME__
   {% assign cfg = pair[1] %}
   {% unless cfg.enabled %}{% continue %}{% endunless %}
   <a class="card" href="/{{ key }}/">
-    <img src="/images/{{ key }}/modern-minimalist/card-page.png" onerror="this.onerror=null;this.src='/images/{{ key }}/card.png';" alt="{{ cfg.name.en | default: key }} card image" />
+    <img src="/images/{{ key }}/modern-minimalist/card-page.png" alt="{{ cfg.name.en | default: key }} card image" />
     <div class="card-title">{{ cfg.name.en | default: key }}</div>
     {% if cfg.name.hi %}<div class="card-subtitle">{{ cfg.name.hi }}</div>{% endif %}
     <div class="card-subtitle">{{ cfg.total_verses | default: 0 }} verses</div>
@@ -422,7 +421,7 @@ layout: default
 <h1>{{ collection_cfg.name.en | default: collection_key }}</h1>
 {% if collection_cfg.name.hi %}<p>{{ collection_cfg.name.hi }}</p>{% endif %}
 
-<img class="collection-hero-image" src="/images/{{ collection_key }}/modern-minimalist/title-page.png" onerror="this.onerror=null;this.src='/images/{{ collection_key }}/title.png';" alt="{{ collection_cfg.name.en | default: collection_key }} title" />
+<img class="collection-hero-image" src="/images/{{ collection_key }}/modern-minimalist/title-page.png" alt="{{ collection_cfg.name.en | default: collection_key }} title" />
 
 {% assign verse_count = 0 %}
 {% for verse in site.verses %}
@@ -482,10 +481,6 @@ collection_key: {collection_key}
   <p>Use this page to review generated verses, title/card images, and collection metadata.</p>
 </section>
 """
-
-PNG_PLACEHOLDER_BASE64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
-)
 
 EXAMPLE_THEME_YML = """name: Modern Minimalist
 description: Clean, minimal design with spiritual focus
@@ -704,23 +699,6 @@ def upsert_collection_entry(content: str, collection: str, num_verses: int) -> s
     return content + entry
 
 
-def create_collection_image_placeholders(base_path: Path, collection: str) -> None:
-    """Create deterministic PNG placeholders in images/<collection>/."""
-    images_dir = base_path / "images" / collection
-    images_dir.mkdir(parents=True, exist_ok=True)
-    placeholder_bytes = base64.b64decode(PNG_PLACEHOLDER_BASE64)
-
-    card_image = images_dir / "card.png"
-    if not card_image.exists():
-        card_image.write_bytes(placeholder_bytes)
-        print(f"✓ Created images/{collection}/card.png")
-
-    title_image = images_dir / "title.png"
-    if not title_image.exists():
-        title_image.write_bytes(placeholder_bytes)
-        print(f"✓ Created images/{collection}/title.png")
-
-
 def create_example_collection(base_path: Path, collection: str, num_verses: int = 3) -> None:
     """
     Create an example collection with sample files.
@@ -806,9 +784,6 @@ verse-03:
         if updated != content:
             collections_file.write_text(updated, encoding="utf-8")
             print(f"✓ Added {collection} to _data/collections.yml")
-
-    # Create deterministic placeholder image assets for card and title contexts.
-    create_collection_image_placeholders(base_path, collection)
 
     # Create collection landing page for local Jekyll preview.
     collection_page = base_path / collection / "index.html"

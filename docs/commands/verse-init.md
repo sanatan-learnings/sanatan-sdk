@@ -92,8 +92,7 @@ verse-init --project-name my-project \
 - ✅ Source text placeholder: `data/sources/<collection>.txt`
 - ✅ Sample theme: `data/themes/<collection>/modern-minimalist.yml`
 - ✅ Scene descriptions template (includes `title-page` and `card-page`): `data/scenes/<collection>.yml`
-- ✅ Card image PNG placeholder: `images/<collection>/card.png`
-- ✅ Title image PNG placeholder: `images/<collection>/title.png`
+- ✅ Canonical collection image paths: `images/<collection>/modern-minimalist/card-page.png` and `title-page.png`
 - ✅ Collection landing page: `<collection>/index.html`
 - ✅ Collection entry in `_data/collections.yml`
 

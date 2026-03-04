@@ -217,18 +217,16 @@ def test_creates_collection_index_page_for_local_preview(tmp_path):
     assert "collection_key: shiv-puran" in content
 
 
-def test_creates_collection_title_image_placeholder(tmp_path):
+def test_does_not_create_root_level_collection_image_placeholders(tmp_path):
     create_directory_structure(tmp_path)
     create_template_files(tmp_path, "test")
     create_example_collection(tmp_path, "shiv-puran", num_verses=3)
 
     card_image = tmp_path / "images" / "shiv-puran" / "card.png"
-    assert card_image.exists()
-    assert card_image.stat().st_size > 0
+    assert not card_image.exists()
 
     title_image = tmp_path / "images" / "shiv-puran" / "title.png"
-    assert title_image.exists()
-    assert title_image.stat().st_size > 0
+    assert not title_image.exists()
 
 
 def test_collection_layout_references_title_image(tmp_path):
@@ -237,12 +235,12 @@ def test_collection_layout_references_title_image(tmp_path):
 
     index_content = (tmp_path / "index.html").read_text()
     assert "/images/{{ key }}/modern-minimalist/card-page.png" in index_content
-    assert "this.src='/images/{{ key }}/card.png'" in index_content
+    assert "this.src='/images/{{ key }}/card.png'" not in index_content
     assert "class=\"card\"" in index_content
 
     layout = (tmp_path / "_layouts" / "collection.html").read_text()
     assert "/images/{{ collection_key }}/modern-minimalist/title-page.png" in layout
-    assert "this.src='/images/{{ collection_key }}/title.png'" in layout
+    assert "this.src='/images/{{ collection_key }}/title.png'" not in layout
     assert "verse.collection_key == collection_key" in layout
     assert "v.path contains" not in layout
 
