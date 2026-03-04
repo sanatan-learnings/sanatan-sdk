@@ -91,7 +91,7 @@ verse-init --project-name my-project \
 - ✅ Canonical text template: `data/verses/<collection>.yaml`
 - ✅ Source text placeholder: `data/sources/<collection>.txt`
 - ✅ Sample theme: `data/themes/<collection>/modern-minimalist.yml`
-- ✅ Scene descriptions template (includes `title-page` and `card-page`): `data/scenes/<collection>.yml`
+- ✅ Collection-aware scene descriptions template (includes `title-page` and `card-page`): `data/scenes/<collection>.yml`
 - ✅ Theme-scoped collection image placeholders: `images/<collection>/modern-minimalist/card-page.png` and `title-page.png`
 - ✅ Collection landing page: `<collection>/index.html`
 - ✅ Collection entry in `_data/collections.yml`

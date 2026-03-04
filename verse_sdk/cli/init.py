@@ -588,25 +588,80 @@ nav:
 
 def _default_collection_scene_entries(collection: str) -> dict:
     display_name = collection.replace('-', ' ').title()
+    context = _infer_collection_scene_context(collection)
     return {
         "title-page": {
             "title": f"{display_name} Title Page",
             "description": (
-                "Close-up portrait of the primary deity/subject filling the lower two-thirds of the frame.\n"
-                "Crowned head, serene yet powerful face, and upper chest centered in composition.\n"
-                "Upper third shows radiant sky with golden divine light and subtle sacred patterns.\n"
-                "Use saffron, gold, and spiritual blue tones with devotional atmosphere."
+                f"{display_name}: {context['title_focus']}.\n"
+                f"Primary subject: {context['subject']} in a {context['setting']}.\n"
+                f"Mood and lighting: {context['mood']} with soft divine glow.\n"
+                f"Symbolic details: {context['imagery']}."
             ),
         },
         "card-page": {
             "title": f"{display_name} Card Image",
             "description": (
-                "A clean, iconic devotional composition for collection listing cards.\n"
-                "Focus on symbolic visual elements associated with the collection subject.\n"
-                "Balanced framing suitable for landscape card display, warm saffron-gold palette,\n"
-                "and clear contrast for title text overlay if needed."
+                f"Collection card for {display_name} centered on {context['subject']}.\n"
+                f"Use a clean iconic composition with {context['imagery']} and {context['mood']}.\n"
+                "Keep framing landscape-friendly for listing cards with clear text contrast."
             ),
         },
+    }
+
+
+def _infer_collection_scene_context(collection: str) -> dict:
+    """Infer lightweight scene context from collection key for better default prompts."""
+    tokens = set(collection.replace("_", "-").lower().split("-"))
+    subject = "the central spiritual figure"
+    setting = "sacred Indian visual environment"
+    mood = "devotional, serene, and uplifting"
+    imagery = "traditional symbols, temple textures, and sacred light motifs"
+    title_focus = "Heroic devotional portrait composition"
+
+    if "hanuman" in tokens:
+        subject = "Lord Hanuman"
+        setting = "Ramayana-inspired sacred setting with subtle Vanara-warrior cues"
+        mood = "courageous bhakti, strength, and compassion"
+        imagery = "gada (mace), saffron aura, and Ram-nam devotional motifs"
+        title_focus = "Powerful Hanuman portrait with compassionate expression"
+    elif "shiv" in tokens or "shiva" in tokens:
+        subject = "Lord Shiva"
+        setting = "Kailash-inspired cosmic mountain and meditative Shaiva ambience"
+        mood = "tranquil, ascetic, and deeply contemplative"
+        imagery = "trishul, damaru, crescent moon, rudraksha, and sacred ash motifs"
+        title_focus = "Majestic Shiva portrait balancing stillness and power"
+    elif "krishna" in tokens:
+        subject = "Lord Krishna"
+        setting = "Vrindavan-inspired devotional setting with natural elegance"
+        mood = "playful divine love, grace, and wisdom"
+        imagery = "flute, peacock feather, lotus, and gentle pastoral elements"
+        title_focus = "Radiant Krishna portrait with divine charm"
+    elif "ram" in tokens or "rama" in tokens:
+        subject = "Lord Rama"
+        setting = "Ayodhya or forest-epic devotional backdrop"
+        mood = "dharma, nobility, and compassionate leadership"
+        imagery = "bow-arrow, royal dharmic motifs, and warm golden light"
+        title_focus = "Noble Rama portrait conveying dharma and compassion"
+    elif "gita" in tokens or "bhagavad" in tokens:
+        subject = "Lord Krishna and Arjuna"
+        setting = "Kurukshetra-inspired sacred battlefield transformed into spiritual teaching space"
+        mood = "clarity, guidance, and spiritual resolve"
+        imagery = "chariot symbolism, dharma motifs, and luminous teaching aura"
+        title_focus = "Krishna as divine teacher guiding Arjuna"
+    elif "puran" in tokens or "puranam" in tokens or "bhagavat" in tokens:
+        subject = "a revered deity with Rishi narration context"
+        setting = "Puranic storytelling environment with temple and manuscript aesthetics"
+        mood = "timeless wisdom, sacred storytelling, and devotion"
+        imagery = "palm-leaf manuscript motifs, sages, and mythic sacred symbols"
+        title_focus = "Mythic Puranic title portrait with narrative depth"
+
+    return {
+        "subject": subject,
+        "setting": setting,
+        "mood": mood,
+        "imagery": imagery,
+        "title_focus": title_focus,
     }
 
 

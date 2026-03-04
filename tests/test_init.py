@@ -184,10 +184,21 @@ def test_creates_scenes_file(tmp_path):
     content = scenes.read_text()
     assert "title-page:" in content
     assert "title: Hanuman Chalisa Title Page" in content
-    assert "Close-up portrait of the primary deity/subject" in content
+    assert "Primary subject: Lord Hanuman" in content
+    assert "gada (mace)" in content
     assert "card-page:" in content
     assert "title: Hanuman Chalisa Card Image" in content
     assert "verse-01:" not in content
+
+
+def test_scenes_file_is_collection_aware_for_shiva(tmp_path):
+    create_directory_structure(tmp_path)
+    create_template_files(tmp_path, "test")
+    create_example_collection(tmp_path, "shiv-puran", num_verses=2)
+    scenes = tmp_path / "data" / "scenes" / "shiv-puran.yml"
+    content = scenes.read_text()
+    assert "Primary subject: Lord Shiva" in content
+    assert "Kailash-inspired" in content
 
 
 def test_creates_source_text_placeholder_file(tmp_path):
