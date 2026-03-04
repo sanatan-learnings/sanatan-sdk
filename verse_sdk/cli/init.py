@@ -21,6 +21,7 @@ Usage:
 
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -172,6 +173,16 @@ MIT
 JEKYLL_CONFIG_TEMPLATE = """title: "{project_name}"
 description: "Verse collection project powered by Sanatan Verse SDK"
 markdown: kramdown
+collections:
+  verses:
+    output: true
+    permalink: /:path/
+defaults:
+  - scope:
+      path: ""
+      type: verses
+    values:
+      layout: verse
 exclude:
   - README.md
   - venv/
@@ -223,27 +234,88 @@ DEFAULT_LAYOUT_TEMPLATE = """<!doctype html>
 """
 
 INDEX_MD_TEMPLATE = """---
-layout: default
-title: {project_name}
+layout: home
+title: __PROJECT_NAME__
 ---
 
-# {project_name}
+{% assign enabled = site.data.collections | where_exp: "item", "item[1].enabled == true" %}
 
-This project was initialized with `verse-init`.
+## Collections
 
-## Quick Links
+{% if enabled.size > 0 %}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;">
+{% for pair in enabled %}
+  {% assign key = pair[0] %}
+  {% assign cfg = pair[1] %}
+  <a href="/{{ key }}/" style="display:block;text-decoration:none;color:inherit;border:1px solid #e4d8c2;border-radius:12px;padding:1rem;background:#fffdf8;">
+    <div style="font-size:1.1rem;font-weight:700;">{{ cfg.name.en | default: key }}</div>
+    {% if cfg.name.hi %}<div style="opacity:0.85;margin-top:0.3rem;">{{ cfg.name.hi }}</div>{% endif %}
+    <div style="margin-top:0.6rem;font-size:0.9rem;">{{ cfg.total_verses | default: 0 }} verses</div>
+  </a>
+{% endfor %}
+</div>
+{% else %}
+No enabled collections found in `_data/collections.yml`.
+{% endif %}
+"""
 
-- Collection registry: `_data/collections.yml`
-- Canonical text: `data/verses/`
-- Source text: `data/sources/`
-- Verse markdown: `_verses/`
+HOME_LAYOUT_TEMPLATE = """---
+layout: default
+---
 
-## Next Steps
+<h1>{{ page.title | default: site.title }}</h1>
+<p>{{ site.description }}</p>
 
-1. Copy `.env.example` to `.env` and add API keys.
-2. Add canonical source text to `data/sources/<collection>.txt`.
-3. Run `verse-parse-source --collection <collection-key>`.
-4. Generate first verse with `verse-generate --collection <collection-key> --verse 1`.
+{{ content }}
+"""
+
+COLLECTION_LAYOUT_TEMPLATE = """---
+layout: default
+---
+
+{% assign collection_key = page.collection_key | default: page.slug %}
+{% assign collection_cfg = site.data.collections[collection_key] %}
+{% assign collection_path_hint = '/_verses/' | append: collection_key | append: '/' %}
+{% assign verses = site.verses | where_exp: "v", "v.path contains collection_path_hint" %}
+
+<h1>{{ collection_cfg.name.en | default: collection_key }}</h1>
+{% if collection_cfg.name.hi %}<p style="font-size:1.1rem;">{{ collection_cfg.name.hi }}</p>{% endif %}
+
+<p>Total verses: {{ collection_cfg.total_verses | default: verses.size }}</p>
+
+<ul>
+  {% for verse in verses %}
+    <li>
+      <a href="{{ verse.url }}">{{ verse.verse_id | default: verse.title | default: verse.basename }}</a>
+    </li>
+  {% endfor %}
+</ul>
+"""
+
+VERSE_LAYOUT_TEMPLATE = """---
+layout: default
+---
+
+<h1>{{ page.title | default: page.verse_id | default: page.basename }}</h1>
+{% if page.verse_number %}<p>Verse {{ page.verse_number }}</p>{% endif %}
+
+{% assign auto_image = '/images/' | append: page.collection | append: '/' | append: page.verse_id | append: '.png' %}
+<img src="{{ page.image | default: auto_image }}" alt="{{ page.title | default: page.verse_id }}" style="max-width:100%;height:auto;border-radius:10px;" />
+
+{% if page.audio %}
+<audio controls style="width:100%;margin-top:1rem;">
+  <source src="{{ page.audio }}" />
+</audio>
+{% endif %}
+
+{{ content }}
+"""
+
+COLLECTION_INDEX_TEMPLATE = """---
+layout: collection
+title: {display_name}
+collection_key: {collection_key}
+---
 """
 
 EXAMPLE_THEME_YML = """name: Modern Minimalist
@@ -317,7 +389,10 @@ def create_template_files(base_path: Path, project_name: str, minimal: bool = Fa
         "Gemfile": GEMFILE_CONTENT,
         "_config.yml": JEKYLL_CONFIG_TEMPLATE.format(project_name=project_name),
         "_layouts/default.html": DEFAULT_LAYOUT_TEMPLATE,
-        "index.md": INDEX_MD_TEMPLATE.format(project_name=project_name),
+        "_layouts/home.html": HOME_LAYOUT_TEMPLATE,
+        "_layouts/collection.html": COLLECTION_LAYOUT_TEMPLATE,
+        "_layouts/verse.html": VERSE_LAYOUT_TEMPLATE,
+        "index.md": INDEX_MD_TEMPLATE.replace("__PROJECT_NAME__", project_name),
         "README.md": README_TEMPLATE.format(project_name=project_name),
     }
 
@@ -332,6 +407,58 @@ def create_template_files(base_path: Path, project_name: str, minimal: bool = Fa
             print(f"✓ Created {file_path}")
         else:
             print(f"⚠ Skipped {file_path} (already exists)")
+
+
+def to_hindi_name(collection: str) -> str:
+    """Best-effort Hindi/Sanskrit name for a collection key."""
+    mapping = {
+        "hanuman": "हनुमान",
+        "chalisa": "चालीसा",
+        "sundar": "सुंदर",
+        "kaand": "काण्ड",
+        "kand": "काण्ड",
+        "shiv": "शिव",
+        "shiva": "शिव",
+        "puran": "पुराण",
+        "puranam": "पुराण",
+        "ram": "राम",
+        "rama": "राम",
+        "gita": "गीता",
+        "bhagavad": "भगवद",
+        "bhagavat": "भागवत",
+        "krishna": "कृष्ण",
+    }
+    words = collection.replace("_", "-").split("-")
+    converted = [mapping.get(word.lower(), word.title()) for word in words if word]
+    return " ".join(converted) if converted else collection
+
+
+def upsert_collection_entry(content: str, collection: str, num_verses: int) -> str:
+    """Insert collection entry before commented example block in collections.yml."""
+    if re.search(rf"^{re.escape(collection)}:\s*$", content, flags=re.MULTILINE):
+        return content
+
+    display_name = collection.replace("-", " ").title()
+    hi_name = to_hindi_name(collection)
+    entry = (
+        f"{collection}:\n"
+        "  enabled: true\n"
+        "  name:\n"
+        f"    en: \"{display_name}\"\n"
+        f"    hi: \"{hi_name}\"\n"
+        f"  subdirectory: \"{collection}\"\n"
+        f"  permalink_base: \"/{collection}\"\n"
+        f"  total_verses: {num_verses}\n"
+    )
+
+    marker = "\n# Example:"
+    if marker in content:
+        before, after = content.split(marker, 1)
+        before = before.rstrip() + "\n\n"
+        return before + entry + marker + after
+
+    content = content.rstrip() + "\n\n"
+    return content + entry
 
 
 def create_example_collection(base_path: Path, collection: str, num_verses: int = 3) -> None:
@@ -451,22 +578,22 @@ scenes: {{}}
     # Update collections.yml
     collections_file = base_path / "_data" / "collections.yml"
     if collections_file.exists():
-        content = collections_file.read_text()
-        if collection not in content:
-            # Format collection name for display
-            display_name = collection.replace('-', ' ').title()
-            example = f"""
-{collection}:
-  enabled: true
-  name:
-    en: "{display_name}"
-    hi: "[Add Hindi/Sanskrit name]"
-  subdirectory: "{collection}"
-  permalink_base: "/{collection}"
-  total_verses: {num_verses}
-"""
-            collections_file.write_text(content + example)
+        content = collections_file.read_text(encoding="utf-8")
+        updated = upsert_collection_entry(content, collection, num_verses)
+        if updated != content:
+            collections_file.write_text(updated, encoding="utf-8")
             print(f"✓ Added {collection} to _data/collections.yml")
+
+    # Create collection landing page for local Jekyll preview.
+    collection_page = base_path / collection / "index.md"
+    collection_page.parent.mkdir(parents=True, exist_ok=True)
+    if not collection_page.exists():
+        display_name = collection.replace("-", " ").title()
+        collection_page.write_text(
+            COLLECTION_INDEX_TEMPLATE.format(display_name=display_name, collection_key=collection),
+            encoding="utf-8"
+        )
+        print(f"✓ Created {collection}/index.md")
 
     print(f"\n✅ Collection '{collection}' created with {num_verses} sample verses")
 

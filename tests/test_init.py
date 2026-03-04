@@ -54,6 +54,9 @@ def test_creates_required_files(tmp_path):
         "Gemfile",
         "_config.yml",
         "_layouts/default.html",
+        "_layouts/home.html",
+        "_layouts/collection.html",
+        "_layouts/verse.html",
         "index.md",
         "README.md",
     ]:
@@ -110,6 +113,9 @@ def test_config_does_not_reference_minima(tmp_path):
     create_template_files(tmp_path, "my-project")
     content = (tmp_path / "_config.yml").read_text()
     assert "theme: minima" not in content
+    assert "collections:" in content
+    assert "verses:" in content
+    assert "output: true" in content
 
 
 def test_index_page_has_jekyll_frontmatter(tmp_path):
@@ -117,7 +123,8 @@ def test_index_page_has_jekyll_frontmatter(tmp_path):
     create_template_files(tmp_path, "my-project")
     content = (tmp_path / "index.md").read_text()
     assert content.startswith("---\n")
-    assert "layout: default" in content
+    assert "layout: home" in content
+    assert "site.data.collections" in content
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +183,31 @@ def test_adds_collection_to_collections_yml(tmp_path):
     create_example_collection(tmp_path, "sundar-kaand", num_verses=2)
     content = (tmp_path / "_data" / "collections.yml").read_text()
     assert "sundar-kaand" in content
+    assert 'hi: "सुंदर काण्ड"' in content
+
+
+def test_collection_entry_inserted_before_example_block(tmp_path):
+    create_directory_structure(tmp_path)
+    create_template_files(tmp_path, "test")
+    create_example_collection(tmp_path, "shiv-puran", num_verses=3)
+
+    content = (tmp_path / "_data" / "collections.yml").read_text()
+    assert "shiv-puran:" in content
+    assert "# Example:" in content
+    assert content.index("shiv-puran:") < content.index("# Example:")
+    assert 'hi: "शिव पुराण"' in content
+
+
+def test_creates_collection_index_page_for_local_preview(tmp_path):
+    create_directory_structure(tmp_path)
+    create_template_files(tmp_path, "test")
+    create_example_collection(tmp_path, "shiv-puran", num_verses=3)
+
+    collection_index = tmp_path / "shiv-puran" / "index.md"
+    assert collection_index.exists()
+    content = collection_index.read_text()
+    assert "layout: collection" in content
+    assert "collection_key: shiv-puran" in content
 
 
 def test_custom_num_verses(tmp_path):
