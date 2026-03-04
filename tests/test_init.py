@@ -159,20 +159,11 @@ def test_collection_next_steps_mentions_canonical_first_optional_theme_and_flow(
     assert "verse-generate --collection shiv-puran --next" in out
 
 
-def test_project_next_steps_show_collection_loop_and_validate_order(tmp_path, monkeypatch, capsys):
+def test_project_next_steps_with_collections_do_not_duplicate_generic_flow(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     init_project(project_name=None, collections=["shiv-puran"], num_verses=3)
 
     out = capsys.readouterr().out
-    assert "2. Add canonical source text (plain text), either:" in out
-    assert "3. Generate canonical YAML from source text:" in out
-    assert "verse-parse-source --collection <collection-key>" in out
-    assert "Output: data/verses/<collection>.yaml" in out
-    assert "Optional: customize theme in data/themes/<collection>/modern-minimalist.yml" in out
-    assert "5. Generate first verse content + assets from canonical YAML:" in out
-    assert "verse-generate --collection <collection-key> --verse 1 --regenerate-content" in out
-    assert "bundle exec jekyll serve" in out
-    assert "verse-generate --collection <collection-key> --all" in out
-    assert "verse-generate --collection <collection-key> --verse 1-N" in out
-    assert "verse-generate --collection <collection-key> --next" in out
-    assert "9. Run: verse-validate" in out
+    assert "2. Follow the collection-specific next steps shown above." in out
+    assert "verse-parse-source --collection <collection-key>" not in out
+    assert "verse-generate --collection <collection-key> --all" not in out
