@@ -248,6 +248,7 @@ title: __PROJECT_NAME__
   {% assign key = pair[0] %}
   {% assign cfg = pair[1] %}
   <a href="/{{ key }}/" style="display:block;text-decoration:none;color:inherit;border:1px solid #e4d8c2;border-radius:12px;padding:1rem;background:#fffdf8;">
+    <img src="/images/{{ key }}/card.svg" alt="{{ cfg.name.en | default: key }} card image" style="width:100%;height:auto;border-radius:10px;border:1px solid #ead8bc;margin-bottom:0.75rem;" />
     <div style="font-size:1.1rem;font-weight:700;">{{ cfg.name.en | default: key }}</div>
     {% if cfg.name.hi %}<div style="opacity:0.85;margin-top:0.3rem;">{{ cfg.name.hi }}</div>{% endif %}
     <div style="margin-top:0.6rem;font-size:0.9rem;">{{ cfg.total_verses | default: 0 }} verses</div>
@@ -335,6 +336,21 @@ TITLE_IMAGE_SVG_TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" width="120
   <text x="600" y="320" text-anchor="middle" font-size="74" font-family="Georgia, 'Times New Roman', serif" font-weight="700" fill="#7f3f13">{display_name}</text>
   <text x="600" y="380" text-anchor="middle" font-size="30" font-family="Georgia, 'Times New Roman', serif" fill="#8f4a19">{hi_name}</text>
   <text x="600" y="438" text-anchor="middle" font-size="22" font-family="Georgia, 'Times New Roman', serif" fill="#8f4a19" opacity="0.85">Scaffolded title image placeholder</text>
+</svg>
+"""
+
+CARD_IMAGE_SVG_TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="{display_name} card image">
+  <defs>
+    <linearGradient id="cardBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fcf2dd"/>
+      <stop offset="65%" stop-color="#f0d9b8"/>
+      <stop offset="100%" stop-color="#e5bf90"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#cardBg)"/>
+  <rect x="56" y="56" width="1088" height="563" rx="26" fill="none" stroke="#a9541b" stroke-width="3" opacity="0.72"/>
+  <text x="600" y="330" text-anchor="middle" font-size="72" font-family="Georgia, 'Times New Roman', serif" font-weight="700" fill="#7f3f13">{display_name}</text>
+  <text x="600" y="390" text-anchor="middle" font-size="30" font-family="Georgia, 'Times New Roman', serif" fill="#8f4a19">{hi_name}</text>
 </svg>
 """
 
@@ -481,20 +497,28 @@ def upsert_collection_entry(content: str, collection: str, num_verses: int) -> s
     return content + entry
 
 
-def create_title_image_placeholder(base_path: Path, collection: str) -> None:
-    """Create a deterministic title image placeholder in images/<collection>/title.svg."""
+def create_collection_image_placeholders(base_path: Path, collection: str) -> None:
+    """Create deterministic card/title image placeholders in images/<collection>/."""
     images_dir = base_path / "images" / collection
     images_dir.mkdir(parents=True, exist_ok=True)
-    title_image = images_dir / "title.svg"
-    if title_image.exists():
-        return
     display_name = collection.replace("-", " ").title()
     hi_name = to_hindi_name(collection)
-    title_image.write_text(
-        TITLE_IMAGE_SVG_TEMPLATE.format(display_name=display_name, hi_name=hi_name),
-        encoding="utf-8"
-    )
-    print(f"✓ Created images/{collection}/title.svg")
+
+    card_image = images_dir / "card.svg"
+    if not card_image.exists():
+        card_image.write_text(
+            CARD_IMAGE_SVG_TEMPLATE.format(display_name=display_name, hi_name=hi_name),
+            encoding="utf-8"
+        )
+        print(f"✓ Created images/{collection}/card.svg")
+
+    title_image = images_dir / "title.svg"
+    if not title_image.exists():
+        title_image.write_text(
+            TITLE_IMAGE_SVG_TEMPLATE.format(display_name=display_name, hi_name=hi_name),
+            encoding="utf-8"
+        )
+        print(f"✓ Created images/{collection}/title.svg")
 
 
 def create_example_collection(base_path: Path, collection: str, num_verses: int = 3) -> None:
@@ -597,8 +621,8 @@ scenes:
             collections_file.write_text(updated, encoding="utf-8")
             print(f"✓ Added {collection} to _data/collections.yml")
 
-    # Create deterministic placeholder title image asset.
-    create_title_image_placeholder(base_path, collection)
+    # Create deterministic placeholder image assets for card and title contexts.
+    create_collection_image_placeholders(base_path, collection)
 
     # Create collection landing page for local Jekyll preview.
     collection_page = base_path / collection / "index.md"

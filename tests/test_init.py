@@ -217,17 +217,26 @@ def test_creates_collection_title_image_placeholder(tmp_path):
     create_template_files(tmp_path, "test")
     create_example_collection(tmp_path, "shiv-puran", num_verses=3)
 
+    card_image = tmp_path / "images" / "shiv-puran" / "card.svg"
+    assert card_image.exists()
+    card_content = card_image.read_text()
+    assert "<svg" in card_content
+    assert "Shiv Puran" in card_content
+
     title_image = tmp_path / "images" / "shiv-puran" / "title.svg"
     assert title_image.exists()
-    content = title_image.read_text()
-    assert "<svg" in content
-    assert "Shiv Puran" in content
-    assert "शिव पुराण" in content
+    title_content = title_image.read_text()
+    assert "<svg" in title_content
+    assert "Shiv Puran" in title_content
+    assert "शिव पुराण" in title_content
 
 
 def test_collection_layout_references_title_image(tmp_path):
     create_directory_structure(tmp_path)
     create_template_files(tmp_path, "test")
+
+    index_content = (tmp_path / "index.md").read_text()
+    assert "/images/{{ key }}/card.svg" in index_content
 
     layout = (tmp_path / "_layouts" / "collection.html").read_text()
     assert "/images/{{ collection_key }}/title.svg" in layout
