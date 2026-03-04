@@ -149,9 +149,12 @@ def test_default_mode_auto_switches_to_chaptered_when_markers_present(tmp_path):
     )
     data = _build_yaml(entries, "shiv-puran", chaptered=chaptered)
 
-    keys = list(data.keys())
+    assert "_meta" in data
+    assert data["_meta"]["collection"] == "shiv-puran"
+    keys = [k for k in data.keys() if k != "_meta"]
     assert any(k.startswith("chapter-01-") for k in keys)
     assert any(k.startswith("chapter-02-") for k in keys)
+    assert data["_meta"]["sequence"] == keys
 
 
 def test_chaptered_parsing_drops_title_preamble_before_first_chapter(tmp_path):
@@ -179,6 +182,26 @@ def test_chaptered_parsing_drops_title_preamble_before_first_chapter(tmp_path):
     )
     data = _build_yaml(entries, "shiv-puran", chaptered=True)
 
-    first_key = next(iter(data))
+    first_key = next(k for k in data if k != "_meta")
     assert first_key == "chapter-01-shloka-01"
     assert data[first_key]["devanagari"] == "शौनक उवाच । हे हे सूत महाप्राज्ञ ।"
+
+
+def test_build_yaml_preserves_existing_meta_fields():
+    entries = [(None, None, "जय हनुमान ज्ञान गुण सागर ।")]
+    data = _build_yaml(
+        entries,
+        "hanuman-chalisa",
+        chaptered=False,
+        existing_meta={
+            "source": "Traditional Hanuman Chalisa by Goswami Tulsidas",
+            "description": "The complete Hanuman Chalisa with 40 verses praising Lord Hanuman",
+            "custom": "value",
+        },
+    )
+
+    assert data["_meta"]["collection"] == "hanuman-chalisa"
+    assert data["_meta"]["source"] == "Traditional Hanuman Chalisa by Goswami Tulsidas"
+    assert data["_meta"]["description"] == "The complete Hanuman Chalisa with 40 verses praising Lord Hanuman"
+    assert data["_meta"]["custom"] == "value"
+    assert data["_meta"]["sequence"] == ["verse-01"]

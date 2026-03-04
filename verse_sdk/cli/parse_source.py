@@ -11,7 +11,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
@@ -487,7 +487,12 @@ def _parse_plain(
     return entries, {**stats, "samples": samples, "anchor": anchor_info}
 
 
-def _build_yaml(entries: List[Tuple[Optional[int], Optional[int], str]], collection_key: str, chaptered: bool) -> Dict[str, Dict[str, str]]:
+def _build_yaml(
+    entries: List[Tuple[Optional[int], Optional[int], str]],
+    collection_key: str,
+    chaptered: bool,
+    existing_meta: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     output: Dict[str, Dict[str, str]] = {}
 
     if chaptered:
@@ -514,10 +519,16 @@ def _build_yaml(entries: List[Tuple[Optional[int], Optional[int], str]], collect
     if not output:
         raise ValueError("No verses detected. Check input files or format.")
 
-    return output
+    meta: Dict[str, Any] = dict(existing_meta) if isinstance(existing_meta, dict) else {}
+    meta["collection"] = collection_key
+    meta.setdefault("source", "[Add source URL here]")
+    meta.setdefault("description", collection_key.replace("-", " ").title())
+    meta["sequence"] = list(output.keys())
+
+    return {"_meta": meta, **output}
 
 
-def _render_yaml(data: Dict[str, Dict[str, str]]) -> str:
+def _render_yaml(data: Dict[str, Any]) -> str:
     return yaml.safe_dump(
         data,
         allow_unicode=True,
@@ -619,6 +630,17 @@ def main():
     if args.disable_heading_filter:
         profile = {**profile, "drop_heading_lines": False}
 
+    output_path = Path(args.output) if args.output else Path("data") / "verses" / f"{args.collection}.yaml"
+    existing = output_path.read_text(encoding="utf-8") if output_path.exists() else None
+    existing_meta: Optional[Dict[str, Any]] = None
+    if existing:
+        try:
+            existing_data = yaml.safe_load(existing) or {}
+            if isinstance(existing_data, dict) and isinstance(existing_data.get("_meta"), dict):
+                existing_meta = existing_data["_meta"]
+        except Exception:
+            existing_meta = None
+
     entries, stats = _parse_plain(
         files,
         chaptered=chaptered,
@@ -633,11 +655,8 @@ def main():
         chapter_scope=args.chapter_scope,
         canto_regex=canto_regex,
     )
-    data = _build_yaml(entries, args.collection, chaptered=chaptered)
+    data = _build_yaml(entries, args.collection, chaptered=chaptered, existing_meta=existing_meta)
     rendered = _render_yaml(data)
-
-    output_path = Path(args.output) if args.output else Path("data") / "verses" / f"{args.collection}.yaml"
-    existing = output_path.read_text(encoding="utf-8") if output_path.exists() else None
 
     if args.diff and existing is not None and existing != rendered:
         diff = difflib.unified_diff(
