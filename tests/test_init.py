@@ -188,7 +188,8 @@ def test_project_next_steps_with_collection_are_consolidated_and_concrete(tmp_pa
     assert "cp .env.example .env" in out
     assert "Set OPENAI_API_KEY (and ELEVENLABS_API_KEY if generating audio)" in out
     assert "Optional: customize theme in data/themes/shiv-puran/modern-minimalist.yml" in out
-    assert "verse-generate --collection shiv-puran --verse 1 --regenerate-content" in out
+    assert "verse-generate --collection shiv-puran --verse 1" in out
+    assert "verse-generate --collection shiv-puran --verse 1 --regenerate-content" not in out
     assert "bundle install" in out
     assert "bundle exec jekyll serve" in out
     assert out.index("bundle install") < out.index("bundle exec jekyll serve")
