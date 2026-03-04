@@ -98,6 +98,7 @@ def test_gemfile_includes_jekyll(tmp_path):
     create_template_files(tmp_path, "my-project")
     content = (tmp_path / "Gemfile").read_text()
     assert 'gem "jekyll"' in content
+    assert 'gem "minima"' in content
 
 
 def test_index_page_has_jekyll_frontmatter(tmp_path):
