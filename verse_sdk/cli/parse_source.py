@@ -153,6 +153,22 @@ def _detect_chapter(line: str) -> Optional[int]:
     return None
 
 
+def _contains_chapter_markers(files: List[Path], min_hits: int = 1) -> bool:
+    """Return True if chapter markers are detected in the given source files."""
+    hits = 0
+    for path in files:
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except Exception:
+            continue
+        for line in lines:
+            if _detect_chapter(line) is not None:
+                hits += 1
+                if hits >= min_hits:
+                    return True
+    return False
+
+
 def _is_frontmatter_line(line: str, profile: dict) -> bool:
     stripped = line.strip()
     if not stripped:
@@ -560,6 +576,11 @@ def main():
         print(f"Matched {len(files)} file(s).")
 
     chaptered = args.format == "chaptered-plain"
+    if not _arg_provided("--format") and args.format == "devanagari-plain":
+        if _contains_chapter_markers(files):
+            chaptered = True
+            print("Detected chapter markers in source; using chaptered-plain format.")
+
     profile = PROFILE_DEFAULTS.get(args.profile, PROFILE_DEFAULTS["default"])
 
     if not _arg_provided("--noise-threshold") and "noise_threshold" in profile:

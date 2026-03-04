@@ -28,7 +28,7 @@ For the full lifecycle from initialization to deployment, see `docs/end-to-end-w
 - `--source PATH` - Source file path (repeatable)
 - `--source-dir DIR` - Directory containing source files
 - `--source-glob GLOB` - Glob for source files under `--source-dir` (default: `**/*.txt`)
-- `--format {devanagari-plain,chaptered-plain}` - Parsing mode (default: `devanagari-plain`)
+- `--format {devanagari-plain,chaptered-plain}` - Parsing mode (default: `devanagari-plain`; auto-switches to `chaptered-plain` when chapter markers are detected and `--format` is omitted)
 - `--profile {default,srimad-bhagavat}` - Parser profile for corpus-specific heuristics
 - `--output PATH` - Output YAML path (default: `data/verses/<collection>.yaml`)
 - `--dry-run` - Print summary without writing output
@@ -52,6 +52,8 @@ For the full lifecycle from initialization to deployment, see `docs/end-to-end-w
 ### `devanagari-plain`
 
 Treats blank-line separated paragraphs as verses. If there are no blank lines, each non-empty line is a verse. Output keys are `verse-01`, `verse-02`, ...
+
+If `--format` is omitted and chapter markers are detected (e.g., `०.१. ...अध्यायः`), the parser automatically switches to `chaptered-plain`.
 
 ### `chaptered-plain`
 
