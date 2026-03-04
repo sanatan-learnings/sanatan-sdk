@@ -18,7 +18,7 @@ from verse_sdk.cli.init import (
 
 def test_creates_required_dirs(tmp_path):
     create_directory_structure(tmp_path)
-    for d in ["_data", "_verses", "data/themes", "data/verses", "data/scenes"]:
+    for d in ["_data", "_layouts", "_verses", "data/themes", "data/verses", "data/scenes"]:
         assert (tmp_path / d).is_dir(), f"Missing required dir: {d}"
 
 
@@ -53,6 +53,7 @@ def test_creates_required_files(tmp_path):
         ".gitignore",
         "Gemfile",
         "_config.yml",
+        "_layouts/default.html",
         "index.md",
         "README.md",
     ]:
@@ -101,7 +102,14 @@ def test_gemfile_includes_jekyll(tmp_path):
     create_template_files(tmp_path, "my-project")
     content = (tmp_path / "Gemfile").read_text()
     assert 'gem "jekyll"' in content
-    assert 'gem "minima"' in content
+    assert 'gem "minima"' not in content
+
+
+def test_config_does_not_reference_minima(tmp_path):
+    create_directory_structure(tmp_path)
+    create_template_files(tmp_path, "my-project")
+    content = (tmp_path / "_config.yml").read_text()
+    assert "theme: minima" not in content
 
 
 def test_index_page_has_jekyll_frontmatter(tmp_path):

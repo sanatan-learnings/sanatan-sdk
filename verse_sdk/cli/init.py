@@ -100,7 +100,6 @@ Thumbs.db
 GEMFILE_CONTENT = """source "https://rubygems.org"
 
 gem "jekyll", "~> 4.3"
-gem "minima", "~> 2.5"
 gem "webrick", "~> 1.8"
 """
 
@@ -173,11 +172,54 @@ MIT
 JEKYLL_CONFIG_TEMPLATE = """title: "{project_name}"
 description: "Verse collection project powered by Sanatan Verse SDK"
 markdown: kramdown
-theme: minima
 exclude:
   - README.md
   - venv/
   - .venv/
+"""
+
+DEFAULT_LAYOUT_TEMPLATE = """<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ page.title | default: site.title }}</title>
+    <style>
+      :root {
+        --bg: #f6f1e7;
+        --text: #1f1a14;
+        --accent: #b35c1e;
+      }
+      body {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        background: linear-gradient(180deg, #fbf8f2 0%, var(--bg) 100%);
+        color: var(--text);
+      }
+      main {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 2rem 1rem 3rem;
+      }
+      h1, h2, h3 {
+        color: var(--accent);
+      }
+      a {
+        color: var(--accent);
+      }
+      code {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+        padding: 0.1rem 0.35rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      {{ content }}
+    </main>
+  </body>
+</html>
 """
 
 INDEX_MD_TEMPLATE = """---
@@ -234,6 +276,7 @@ def create_directory_structure(base_path: Path, minimal: bool = False) -> None:
     # Required directories
     directories = [
         "_data",
+        "_layouts",
         "_verses",
         "data/themes",
         "data/verses",
@@ -273,6 +316,7 @@ def create_template_files(base_path: Path, project_name: str, minimal: bool = Fa
         ".gitignore": GITIGNORE_CONTENT,
         "Gemfile": GEMFILE_CONTENT,
         "_config.yml": JEKYLL_CONFIG_TEMPLATE.format(project_name=project_name),
+        "_layouts/default.html": DEFAULT_LAYOUT_TEMPLATE,
         "index.md": INDEX_MD_TEMPLATE.format(project_name=project_name),
         "README.md": README_TEMPLATE.format(project_name=project_name),
     }
