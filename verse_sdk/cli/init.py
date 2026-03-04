@@ -200,31 +200,145 @@ DEFAULT_LAYOUT_TEMPLATE = """<!doctype html>
     <title>{{ page.title | default: site.title }}</title>
     <style>
       :root {
-        --bg: #f6f1e7;
+        --bg: #f7f3ea;
+        --surface: #fffaf0;
+        --surface-strong: #fffdf8;
         --text: #1f1a14;
+        --muted: #5f5243;
         --accent: #b35c1e;
+        --accent-soft: #f6e2c5;
+        --border: #e4d8c2;
       }
       body {
         margin: 0;
         font-family: Georgia, "Times New Roman", serif;
-        background: linear-gradient(180deg, #fbf8f2 0%, var(--bg) 100%);
+        background: radial-gradient(circle at top, #fff7ea 0%, var(--bg) 45%, #f0e8dc 100%);
         color: var(--text);
+        line-height: 1.6;
       }
       main {
-        max-width: 880px;
+        max-width: 1080px;
         margin: 0 auto;
-        padding: 2rem 1rem 3rem;
+        padding: 2rem 1rem 4rem;
       }
       h1, h2, h3 {
         color: var(--accent);
       }
+      h1 { margin-top: 0; }
       a {
         color: var(--accent);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 2px;
       }
       code {
         background: rgba(0, 0, 0, 0.05);
         border-radius: 4px;
         padding: 0.1rem 0.35rem;
+      }
+      .hero {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: linear-gradient(165deg, #fffdf8 0%, #fff6e7 70%, #ffe9cc 100%);
+        padding: 1.5rem;
+        box-shadow: 0 10px 28px rgba(82, 52, 22, 0.08);
+      }
+      .hero p {
+        color: var(--muted);
+        margin-bottom: 0;
+      }
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        margin-top: 1rem;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #fff7ec;
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 0.5rem 1rem;
+        font-size: 0.95rem;
+      }
+      .button.secondary {
+        background: var(--accent-soft);
+        color: #7a4214;
+        border-color: #d3aa74;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.8rem;
+        margin-top: 1rem;
+      }
+      .stat {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        padding: 0.75rem;
+      }
+      .stat strong {
+        font-size: 1.25rem;
+        color: var(--accent);
+      }
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-top: 1.2rem;
+      }
+      .card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface-strong);
+        padding: 0.9rem;
+        box-shadow: 0 8px 18px rgba(61, 39, 16, 0.05);
+      }
+      .card img {
+        width: 100%;
+        height: auto;
+        border-radius: 10px;
+        border: 1px solid #ead8bc;
+        margin-bottom: 0.75rem;
+      }
+      .card-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+      }
+      .card-subtitle {
+        opacity: 0.85;
+        margin-top: 0.25rem;
+      }
+      .collection-hero-image {
+        width: 100%;
+        max-width: 960px;
+        height: auto;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--surface-strong);
+      }
+      .verse-list {
+        list-style: none;
+        padding: 0;
+        margin: 1rem 0 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.7rem;
+      }
+      .verse-list li a {
+        display: block;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface-strong);
+        padding: 0.6rem 0.8rem;
+        text-decoration: none;
       }
     </style>
   </head>
@@ -236,38 +350,56 @@ DEFAULT_LAYOUT_TEMPLATE = """<!doctype html>
 </html>
 """
 
-INDEX_MD_TEMPLATE = """---
+INDEX_HTML_TEMPLATE = """---
 layout: home
 title: __PROJECT_NAME__
 ---
 
-## Collections
-
 {% assign has_enabled = false %}
+{% assign enabled_count = 0 %}
+{% assign total_verses = 0 %}
 {% for pair in site.data.collections %}
   {% assign cfg = pair[1] %}
   {% if cfg.enabled %}
     {% assign has_enabled = true %}
+    {% assign enabled_count = enabled_count | plus: 1 %}
+    {% assign total_verses = total_verses | plus: cfg.total_verses %}
   {% endif %}
 {% endfor %}
 
+<section class="hero">
+  <h1>{{ page.title | default: site.title }}</h1>
+  <p>{{ site.description }}</p>
+  <div class="button-row">
+    <a class="button" href="https://github.com/sanatan-learnings/sanatan-verse-sdk/blob/main/docs/end-to-end-workflow.md">End-to-End Workflow</a>
+    <a class="button secondary" href="https://github.com/sanatan-learnings/sanatan-verse-sdk/blob/main/docs/usage.md">Command Reference</a>
+  </div>
+  <div class="stats">
+    <div class="stat"><strong>{{ enabled_count }}</strong><div>Enabled collections</div></div>
+    <div class="stat"><strong>{{ total_verses }}</strong><div>Configured verses</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Collections</h2>
 {% if has_enabled %}
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;">
+<div class="card-grid">
 {% for pair in site.data.collections %}
   {% assign key = pair[0] %}
   {% assign cfg = pair[1] %}
   {% unless cfg.enabled %}{% continue %}{% endunless %}
-  <a href="/{{ key }}/" style="display:block;text-decoration:none;color:inherit;border:1px solid #e4d8c2;border-radius:12px;padding:1rem;background:#fffdf8;">
-    <img src="/images/{{ key }}/modern-minimalist/card-page.png" onerror="this.onerror=null;this.src='/images/{{ key }}/card.png';" alt="{{ cfg.name.en | default: key }} card image" style="width:100%;height:auto;border-radius:10px;border:1px solid #ead8bc;margin-bottom:0.75rem;" />
-    <div style="font-size:1.1rem;font-weight:700;">{{ cfg.name.en | default: key }}</div>
-    {% if cfg.name.hi %}<div style="opacity:0.85;margin-top:0.3rem;">{{ cfg.name.hi }}</div>{% endif %}
-    <div style="margin-top:0.6rem;font-size:0.9rem;">{{ cfg.total_verses | default: 0 }} verses</div>
+  <a class="card" href="/{{ key }}/">
+    <img src="/images/{{ key }}/modern-minimalist/card-page.png" onerror="this.onerror=null;this.src='/images/{{ key }}/card.png';" alt="{{ cfg.name.en | default: key }} card image" />
+    <div class="card-title">{{ cfg.name.en | default: key }}</div>
+    {% if cfg.name.hi %}<div class="card-subtitle">{{ cfg.name.hi }}</div>{% endif %}
+    <div class="card-subtitle">{{ cfg.total_verses | default: 0 }} verses</div>
   </a>
 {% endfor %}
 </div>
 {% else %}
 No enabled collections found in `_data/collections.yml`.
 {% endif %}
+</section>
 """
 
 HOME_LAYOUT_TEMPLATE = """---
@@ -288,9 +420,9 @@ layout: default
 {% assign collection_cfg = site.data.collections[collection_key] %}
 
 <h1>{{ collection_cfg.name.en | default: collection_key }}</h1>
-{% if collection_cfg.name.hi %}<p style="font-size:1.1rem;">{{ collection_cfg.name.hi }}</p>{% endif %}
+{% if collection_cfg.name.hi %}<p>{{ collection_cfg.name.hi }}</p>{% endif %}
 
-<img src="/images/{{ collection_key }}/modern-minimalist/title-page.png" onerror="this.onerror=null;this.src='/images/{{ collection_key }}/title.png';" alt="{{ collection_cfg.name.en | default: collection_key }} title" style="width:100%;max-width:960px;height:auto;border-radius:12px;border:1px solid #e4d8c2;background:#fffdf8;" />
+<img class="collection-hero-image" src="/images/{{ collection_key }}/modern-minimalist/title-page.png" onerror="this.onerror=null;this.src='/images/{{ collection_key }}/title.png';" alt="{{ collection_cfg.name.en | default: collection_key }} title" />
 
 {% assign verse_count = 0 %}
 {% for verse in site.verses %}
@@ -299,8 +431,12 @@ layout: default
   {% endif %}
 {% endfor %}
 <p>Total verses: {{ collection_cfg.total_verses | default: verse_count }}</p>
+<div class="button-row">
+  <a class="button" href="/">Back to Home</a>
+  <a class="button secondary" href="https://github.com/sanatan-learnings/sanatan-verse-sdk/blob/main/docs/end-to-end-workflow.md">Workflow Guide</a>
+</div>
 
-<ul>
+<ul class="verse-list">
 {% assign listed = false %}
 {% for verse in site.verses %}
   {% if verse.collection_key == collection_key %}
@@ -340,6 +476,11 @@ layout: collection
 title: {display_name}
 collection_key: {collection_key}
 ---
+
+<section class="hero">
+  <h2>{display_name}</h2>
+  <p>Use this page to review generated verses, title/card images, and collection metadata.</p>
+</section>
 """
 
 PNG_PLACEHOLDER_BASE64 = (
@@ -494,7 +635,7 @@ def create_template_files(base_path: Path, project_name: str, minimal: bool = Fa
         "_layouts/home.html": HOME_LAYOUT_TEMPLATE,
         "_layouts/collection.html": COLLECTION_LAYOUT_TEMPLATE,
         "_layouts/verse.html": VERSE_LAYOUT_TEMPLATE,
-        "index.md": INDEX_MD_TEMPLATE.replace("__PROJECT_NAME__", project_name),
+        "index.html": INDEX_HTML_TEMPLATE.replace("__PROJECT_NAME__", project_name),
         "README.md": README_TEMPLATE.format(project_name=project_name),
     }
 
@@ -670,7 +811,7 @@ verse-03:
     create_collection_image_placeholders(base_path, collection)
 
     # Create collection landing page for local Jekyll preview.
-    collection_page = base_path / collection / "index.md"
+    collection_page = base_path / collection / "index.html"
     collection_page.parent.mkdir(parents=True, exist_ok=True)
     if not collection_page.exists():
         display_name = collection.replace("-", " ").title()
@@ -678,7 +819,7 @@ verse-03:
             COLLECTION_INDEX_TEMPLATE.format(display_name=display_name, collection_key=collection),
             encoding="utf-8"
         )
-        print(f"✓ Created {collection}/index.md")
+        print(f"✓ Created {collection}/index.html")
 
     print(f"\n✅ Collection '{collection}' initialized (canonical placeholders: {num_verses})")
 

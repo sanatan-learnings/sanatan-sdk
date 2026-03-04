@@ -57,7 +57,7 @@ def test_creates_required_files(tmp_path):
         "_layouts/home.html",
         "_layouts/collection.html",
         "_layouts/verse.html",
-        "index.md",
+        "index.html",
         "README.md",
     ]:
         assert (tmp_path / f).exists(), f"Missing file: {f}"
@@ -121,12 +121,13 @@ def test_config_does_not_reference_minima(tmp_path):
 def test_index_page_has_jekyll_frontmatter(tmp_path):
     create_directory_structure(tmp_path)
     create_template_files(tmp_path, "my-project")
-    content = (tmp_path / "index.md").read_text()
+    content = (tmp_path / "index.html").read_text()
     assert content.startswith("---\n")
     assert "layout: home" in content
     assert "site.data.collections" in content
-    assert "item[1].enabled" not in content
     assert "cfg.enabled" in content
+    assert "class=\"hero\"" in content
+    assert "class=\"card-grid\"" in content
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +210,7 @@ def test_creates_collection_index_page_for_local_preview(tmp_path):
     create_template_files(tmp_path, "test")
     create_example_collection(tmp_path, "shiv-puran", num_verses=3)
 
-    collection_index = tmp_path / "shiv-puran" / "index.md"
+    collection_index = tmp_path / "shiv-puran" / "index.html"
     assert collection_index.exists()
     content = collection_index.read_text()
     assert "layout: collection" in content
@@ -234,9 +235,10 @@ def test_collection_layout_references_title_image(tmp_path):
     create_directory_structure(tmp_path)
     create_template_files(tmp_path, "test")
 
-    index_content = (tmp_path / "index.md").read_text()
+    index_content = (tmp_path / "index.html").read_text()
     assert "/images/{{ key }}/modern-minimalist/card-page.png" in index_content
     assert "this.src='/images/{{ key }}/card.png'" in index_content
+    assert "class=\"card\"" in index_content
 
     layout = (tmp_path / "_layouts" / "collection.html").read_text()
     assert "/images/{{ collection_key }}/modern-minimalist/title-page.png" in layout

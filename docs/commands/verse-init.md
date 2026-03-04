@@ -94,7 +94,7 @@ verse-init --project-name my-project \
 - ✅ Scene descriptions template (includes `title-page` and `card-page`): `data/scenes/<collection>.yml`
 - ✅ Card image PNG placeholder: `images/<collection>/card.png`
 - ✅ Title image PNG placeholder: `images/<collection>/title.png`
-- ✅ Collection landing page: `<collection>/index.md`
+- ✅ Collection landing page: `<collection>/index.html`
 - ✅ Collection entry in `_data/collections.yml`
 
 ## Created Structure
