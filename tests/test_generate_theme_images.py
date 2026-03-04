@@ -10,6 +10,8 @@ from verse_sdk.images.generate_theme_images import (
     _is_valid_image_file,
     _validate_image_bytes,
     _write_image_atomic,
+    resolve_collection_arg,
+    resolve_theme_arg,
 )
 
 
@@ -79,3 +81,77 @@ def test_generate_image_regenerates_when_existing_file_is_invalid(tmp_path, monk
     assert broken.exists()
     assert broken.stat().st_size > 0
     assert _is_valid_image_file(broken) is True
+
+
+def test_resolve_collection_arg_auto_selects_single_configured_collection(tmp_path):
+    data_dir = tmp_path / "_data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "collections.yml").write_text(
+        "shiv-puran:\n"
+        "  enabled: true\n"
+        "  name:\n"
+        "    en: Shiv Puran\n",
+        encoding="utf-8",
+    )
+
+    assert resolve_collection_arg(None, project_dir=tmp_path) == "shiv-puran"
+
+
+def test_resolve_collection_arg_errors_when_multiple_configured_collections(tmp_path):
+    data_dir = tmp_path / "_data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "collections.yml").write_text(
+        "shiv-puran:\n"
+        "  enabled: true\n"
+        "ramayan:\n"
+        "  enabled: true\n",
+        encoding="utf-8",
+    )
+
+    try:
+        resolve_collection_arg(None, project_dir=tmp_path)
+        assert False, "Expected ValueError for ambiguous collection"
+    except ValueError as exc:
+        assert "Multiple collections found" in str(exc)
+        assert "ramayan" in str(exc)
+        assert "shiv-puran" in str(exc)
+
+
+def test_resolve_theme_arg_prefers_configured_default_theme(tmp_path):
+    data_dir = tmp_path / "_data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "collections.yml").write_text(
+        "shiv-puran:\n"
+        "  enabled: true\n"
+        "  image_theme: temple-art\n",
+        encoding="utf-8",
+    )
+    themes_dir = tmp_path / "data" / "themes" / "shiv-puran"
+    themes_dir.mkdir(parents=True, exist_ok=True)
+    (themes_dir / "temple-art.yml").write_text("theme: {}\n", encoding="utf-8")
+    (themes_dir / "modern-minimalist.yml").write_text("theme: {}\n", encoding="utf-8")
+
+    assert resolve_theme_arg("shiv-puran", None, project_dir=tmp_path) == "temple-art"
+
+
+def test_resolve_theme_arg_auto_selects_single_theme_file(tmp_path):
+    themes_dir = tmp_path / "data" / "themes" / "shiv-puran"
+    themes_dir.mkdir(parents=True, exist_ok=True)
+    (themes_dir / "modern-minimalist.yml").write_text("theme: {}\n", encoding="utf-8")
+
+    assert resolve_theme_arg("shiv-puran", None, project_dir=tmp_path) == "modern-minimalist"
+
+
+def test_resolve_theme_arg_errors_when_multiple_themes_without_default(tmp_path):
+    themes_dir = tmp_path / "data" / "themes" / "shiv-puran"
+    themes_dir.mkdir(parents=True, exist_ok=True)
+    (themes_dir / "modern-minimalist.yml").write_text("theme: {}\n", encoding="utf-8")
+    (themes_dir / "kids-friendly.yml").write_text("theme: {}\n", encoding="utf-8")
+
+    try:
+        resolve_theme_arg("shiv-puran", None, project_dir=tmp_path)
+        assert False, "Expected ValueError for ambiguous themes"
+    except ValueError as exc:
+        assert "Multiple themes found" in str(exc)
+        assert "kids-friendly" in str(exc)
+        assert "modern-minimalist" in str(exc)

@@ -416,6 +416,108 @@ def list_collections(project_dir: Path = PROJECT_DIR):
         print(f"  ✓ {coll_dir.name:35s} ({verse_count} verses, {theme_count} themes)")
 
 
+def _load_collections_config(project_dir: Path = PROJECT_DIR) -> Dict:
+    """Load _data/collections.yml if present."""
+    if not yaml:
+        return {}
+    collections_file = project_dir / "_data" / "collections.yml"
+    if not collections_file.exists():
+        return {}
+    try:
+        data = yaml.safe_load(collections_file.read_text(encoding="utf-8")) or {}
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _get_collection_theme_from_config(collection: str, project_dir: Path = PROJECT_DIR) -> Optional[str]:
+    """Return configured default theme for a collection, if defined."""
+    collections_cfg = _load_collections_config(project_dir)
+    entry = collections_cfg.get(collection, {})
+    if not isinstance(entry, dict):
+        return None
+
+    for key in ("image_theme", "theme", "default_theme"):
+        value = entry.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def resolve_collection_arg(collection: Optional[str], project_dir: Path = PROJECT_DIR) -> str:
+    """Resolve collection argument, auto-selecting when unambiguous."""
+    if collection:
+        return collection
+
+    collections_cfg = _load_collections_config(project_dir)
+    configured = [k for k, v in collections_cfg.items() if isinstance(v, dict) and v.get("enabled", True)]
+    if len(configured) == 1:
+        selected = configured[0]
+        print(f"✓ Auto-selected collection: {selected}")
+        return selected
+    if len(configured) > 1:
+        choices = ", ".join(sorted(configured))
+        raise ValueError(
+            "Multiple collections found; pass --collection explicitly.\n"
+            f"Choices: {choices}"
+        )
+
+    verses_base = project_dir / "_verses"
+    discovered = sorted([d.name for d in verses_base.iterdir() if d.is_dir()]) if verses_base.exists() else []
+    if len(discovered) == 1:
+        selected = discovered[0]
+        print(f"✓ Auto-selected collection: {selected}")
+        return selected
+    if len(discovered) > 1:
+        choices = ", ".join(discovered)
+        raise ValueError(
+            "Multiple collections found; pass --collection explicitly.\n"
+            f"Choices: {choices}"
+        )
+
+    raise ValueError(
+        "No collection found. Use --collection <name> or create a collection via "
+        "verse-init --collection <name>."
+    )
+
+
+def resolve_theme_arg(collection: str, theme: Optional[str], project_dir: Path = PROJECT_DIR) -> str:
+    """Resolve theme argument, auto-selecting when unambiguous."""
+    if theme:
+        return theme
+
+    configured_theme = _get_collection_theme_from_config(collection, project_dir)
+    themes_dir = project_dir / "data" / "themes" / collection
+    file_themes = sorted([p.stem for p in themes_dir.glob("*.yml")]) if themes_dir.exists() else []
+    unique_file_themes = sorted(set(file_themes))
+
+    if configured_theme:
+        if not unique_file_themes or configured_theme in unique_file_themes:
+            print(f"✓ Auto-selected theme from config: {configured_theme}")
+            return configured_theme
+        available = ", ".join(unique_file_themes)
+        raise ValueError(
+            f"Configured default theme '{configured_theme}' not found in data/themes/{collection}/.\n"
+            f"Available themes: {available}"
+        )
+
+    if len(unique_file_themes) == 1:
+        selected = unique_file_themes[0]
+        print(f"✓ Auto-selected theme: {selected}")
+        return selected
+    if len(unique_file_themes) > 1:
+        available = ", ".join(unique_file_themes)
+        raise ValueError(
+            "Multiple themes found; pass --theme explicitly.\n"
+            f"Available themes for {collection}: {available}"
+        )
+
+    raise ValueError(
+        f"No themes found for collection '{collection}'. "
+        f"Create data/themes/{collection}/<theme>.yml or pass --theme."
+    )
+
+
 def load_theme_config(collection: str, theme: str) -> Optional[Dict]:
     """
     Load theme configuration from YAML file if it exists.
@@ -577,11 +679,12 @@ Cost Estimate:
         list_collections()
         sys.exit(0)
 
-    # Validate required parameters
-    if not args.collection:
-        parser.error("--collection is required")
-    if not args.theme:
-        parser.error("--theme is required")
+    # Resolve collection/theme (auto-select when unambiguous).
+    try:
+        args.collection = resolve_collection_arg(args.collection)
+        args.theme = resolve_theme_arg(args.collection, args.theme)
+    except ValueError as exc:
+        parser.error(str(exc))
 
     # Get API key
     api_key = args.api_key or os.environ.get('OPENAI_API_KEY')
