@@ -378,10 +378,15 @@ scenes:
 
     print(f"\n✅ Collection '{collection}' created with {num_verses} sample verses")
     print("   Next steps:")
-    print(f"   1. Add canonical text to data/verses/{collection}.yaml")
-    print(f"   2. Edit verse files in _verses/{collection}/")
+    print(f"   1. Parse canonical text from source:")
+    print(f"      verse-parse-source --collection {collection} --source <path-to-source-text>")
+    print(f"      (or edit data/verses/{collection}.yaml manually)")
+    print(f"   2. Review/edit verses in _verses/{collection}/")
     print(f"   3. Customize theme in data/themes/{collection}/modern-minimalist.yml")
     print(f"   4. Add scene descriptions in data/scenes/{collection}.yml")
+    print("   5. Run: verse-validate")
+    print(f"   6. Run: verse-generate --collection {collection} --verse 1")
+    print("   7. Optional: verse-embeddings / verse-index-sources / verse-puranic-context / verse-deploy")
 
 
 def init_project(
@@ -448,9 +453,12 @@ def init_project(
     print("📝 Next steps:")
     print("   1. Copy .env.example to .env and add your API keys")
     if collections:
-        print("   2. Add canonical Devanagari text to data/verses/<collection>.yaml")
+        print("   2. Parse canonical text from source:")
+        print("      verse-parse-source --collection <collection-key> --source <path-to-source-text>")
+        print("      (or edit data/verses/<collection>.yaml manually)")
         print("   3. Run: verse-validate")
         print("   4. Run: verse-generate --collection <collection-key> --verse 1")
+        print("   5. Optional: verse-embeddings / verse-index-sources / verse-puranic-context / verse-deploy")
     else:
         print("   2. Edit _data/collections.yml to define your collections")
         print("   3. Add canonical verse text to data/verses/<collection>.yaml")
