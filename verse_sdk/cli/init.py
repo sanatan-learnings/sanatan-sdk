@@ -27,6 +27,8 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+import yaml
+
 # Template files content
 ENV_EXAMPLE_CONTENT = """# OpenAI API Key (for images, embeddings, and content generation)
 # Get your key from: https://platform.openai.com/api-keys
@@ -363,6 +365,80 @@ style: "natural"         # Options: natural, vivid
 """
 
 
+def _default_collection_scene_entries(collection: str) -> dict:
+    display_name = collection.replace('-', ' ').title()
+    return {
+        "title-page": {
+            "title": f"{display_name} Title Page",
+            "description": (
+                "Close-up portrait of the primary deity/subject filling the lower two-thirds of the frame.\n"
+                "Crowned head, serene yet powerful face, and upper chest centered in composition.\n"
+                "Upper third shows radiant sky with golden divine light and subtle sacred patterns.\n"
+                "Use saffron, gold, and spiritual blue tones with devotional atmosphere."
+            ),
+        },
+        "card-page": {
+            "title": f"{display_name} Card Image",
+            "description": (
+                "A clean, iconic devotional composition for collection listing cards.\n"
+                "Focus on symbolic visual elements associated with the collection subject.\n"
+                "Balanced framing suitable for landscape card display, warm saffron-gold palette,\n"
+                "and clear contrast for title text overlay if needed."
+            ),
+        },
+    }
+
+
+def upsert_collection_scene_entries(scenes_file: Path, collection: str) -> bool:
+    """Ensure title-page and card-page scene entries exist in scene YAML."""
+    defaults = _default_collection_scene_entries(collection)
+    display_name = collection.replace('-', ' ').title()
+
+    if scenes_file.exists():
+        raw = scenes_file.read_text(encoding="utf-8")
+        data = yaml.safe_load(raw) or {}
+        if not isinstance(data, dict):
+            data = {}
+    else:
+        data = {}
+
+    meta = data.get("_meta")
+    if not isinstance(meta, dict):
+        meta = {}
+    meta.setdefault("collection", collection)
+    meta.setdefault("description", f"Scene descriptions for {display_name} image generation")
+    data["_meta"] = meta
+
+    scenes = data.get("scenes")
+    if not isinstance(scenes, dict):
+        scenes = {}
+
+    changed = False
+    for key, value in defaults.items():
+        if key not in scenes or not isinstance(scenes[key], dict):
+            scenes[key] = value
+            changed = True
+        else:
+            if "title" not in scenes[key]:
+                scenes[key]["title"] = value["title"]
+                changed = True
+            if "description" not in scenes[key]:
+                scenes[key]["description"] = value["description"]
+                changed = True
+
+    data["scenes"] = scenes
+
+    if not scenes_file.exists():
+        changed = True
+
+    if changed:
+        scenes_file.write_text(
+            yaml.safe_dump(data, sort_keys=False, allow_unicode=True, width=1000),
+            encoding="utf-8"
+        )
+    return changed
+
+
 def create_directory_structure(base_path: Path, minimal: bool = False) -> None:
     """
     Create the recommended directory structure.
@@ -566,28 +642,7 @@ verse-03:
     # Create minimal scene descriptions file (YAML format in data/scenes/)
     scenes_file = base_path / "data" / "scenes" / f"{collection}.yml"
     scenes_file.parent.mkdir(parents=True, exist_ok=True)
-    if not scenes_file.exists():
-        scenes_content = f"""_meta:
-  collection: {collection}
-  description: Scene descriptions for {collection.replace('-', ' ').title()} image generation
-
-scenes:
-  title-page:
-    title: "{collection.replace('-', ' ').title()} Title Page"
-    description: |
-      Close-up portrait of the primary deity/subject filling the lower two-thirds of the frame.
-      Crowned head, serene yet powerful face, and upper chest centered in composition.
-      Upper third shows radiant sky with golden divine light and subtle sacred patterns.
-      Use saffron, gold, and spiritual blue tones with devotional atmosphere.
-  card-page:
-    title: "{collection.replace('-', ' ').title()} Card Image"
-    description: |
-      A clean, iconic devotional composition for collection listing cards.
-      Focus on symbolic visual elements associated with the collection subject.
-      Balanced framing suitable for landscape card display, warm saffron-gold palette,
-      and clear contrast for title text overlay if needed.
-"""
-        scenes_file.write_text(scenes_content)
+    if upsert_collection_scene_entries(scenes_file, collection):
         print(f"✓ Created data/scenes/{collection}.yml")
 
     # Create canonical plain-text source placeholder for parse-source auto-discovery
@@ -645,23 +700,23 @@ def print_collection_next_steps(collection: str, num_verses: int, additional_col
     print("   5. Generate first verse content + assets from canonical YAML:")
     print(f"      verse-generate --collection {collection} --verse 1")
     print("      (Scene descriptions can be auto-generated by verse-generate, or edited in data/scenes manually.)")
-    print("      Optional scene-driven collection images from data/scenes:")
+    print("   6. Generate collection card/title images from data/scenes:")
     print(f"      verse-images --collection {collection} --theme modern-minimalist --verse title-page")
     print(f"      verse-images --collection {collection} --theme modern-minimalist --verse card-page")
     print(f"      Outputs: images/{collection}/modern-minimalist/title-page.png and card-page.png")
-    print(f"   6. Review/edit generated verses in _verses/{collection}/ for quality")
-    print("   7. Preview locally and verify output:")
+    print(f"   7. Review/edit generated verses in _verses/{collection}/ for quality")
+    print("   8. Preview locally and verify output:")
     print("      bundle install")
     print("      bundle exec jekyll serve")
-    print("   8. Optional next: generate full collection:")
+    print("   9. Optional next: generate full collection:")
     print(f"      verse-generate --collection {collection} --all")
     print(f"      # or explicit range: verse-generate --collection {collection} --verse 1-{num_verses}")
     print(f"      # or iterative: verse-generate --collection {collection} --next")
-    print("   9. Optional quality check: verse-validate")
-    print("   10. Optional advanced workflows: verse-embeddings / verse-index-sources / verse-puranic-context / verse-deploy")
-    print("   11. Docs for advanced workflows: https://github.com/sanatan-learnings/sanatan-verse-sdk/blob/main/docs/usage.md")
+    print("   10. Optional quality check: verse-validate")
+    print("   11. Optional advanced workflows: verse-embeddings / verse-index-sources / verse-puranic-context / verse-deploy")
+    print("   12. Docs for advanced workflows: https://github.com/sanatan-learnings/sanatan-verse-sdk/blob/main/docs/usage.md")
     if additional_collections > 0:
-        print(f"   12. Repeat steps 2-11 for the other {additional_collections} collection(s).")
+        print(f"   13. Repeat steps 2-12 for the other {additional_collections} collection(s).")
 
 
 def print_generic_next_steps() -> None:

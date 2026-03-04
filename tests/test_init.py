@@ -167,10 +167,10 @@ def test_creates_scenes_file(tmp_path):
     assert scenes.exists()
     content = scenes.read_text()
     assert "title-page:" in content
-    assert 'title: "Hanuman Chalisa Title Page"' in content
+    assert "title: Hanuman Chalisa Title Page" in content
     assert "Close-up portrait of the primary deity/subject" in content
     assert "card-page:" in content
-    assert 'title: "Hanuman Chalisa Card Image"' in content
+    assert "title: Hanuman Chalisa Card Image" in content
     assert "verse-01:" not in content
 
 
@@ -278,13 +278,13 @@ def test_project_next_steps_with_collection_are_consolidated_and_concrete(tmp_pa
     assert "bundle install" in out
     assert "bundle exec jekyll serve" in out
     assert out.index("bundle install") < out.index("bundle exec jekyll serve")
-    assert "8. Optional next: generate full collection:" in out
+    assert "9. Optional next: generate full collection:" in out
     assert "verse-generate --collection shiv-puran --all" in out
     assert "verse-generate --collection shiv-puran --verse 1-3" in out
     assert "verse-generate --collection shiv-puran --next" in out
-    assert "9. Optional quality check: verse-validate" in out
-    assert "10. Optional advanced workflows: verse-embeddings / verse-index-sources / verse-puranic-context / verse-deploy" in out
-    assert "11. Docs for advanced workflows: https://github.com/sanatan-learnings/sanatan-verse-sdk/blob/main/docs/usage.md" in out
+    assert "10. Optional quality check: verse-validate" in out
+    assert "11. Optional advanced workflows: verse-embeddings / verse-index-sources / verse-puranic-context / verse-deploy" in out
+    assert "12. Docs for advanced workflows: https://github.com/sanatan-learnings/sanatan-verse-sdk/blob/main/docs/usage.md" in out
     assert "Follow the collection-specific next steps shown above" not in out
 
 
