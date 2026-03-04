@@ -20,6 +20,9 @@ CHAPTER_PATTERNS = [
     re.compile(r"\bअध्याय\s+(\d+)\b"),
     re.compile(r"\bअध्यायः\s+(\d+)\b"),
     re.compile(r"(?:अ)?ऽ?ध्याय[:ः।]?\s*[-–—]?\s*([०-९0-9]+)"),
+    # Devanagari ordinal heading styles like: "०.१. प्रथमोऽध्यायः ..."
+    re.compile(r"^\s*[०-९0-9]+\s*[.\-]\s*([०-९0-9]+)\s*[.\-]\s*.*(?:अ)?ऽ?ध्याय"),
+    re.compile(r"^\s*([०-९0-9]+)\s*[.\-]\s*.*(?:अ)?ऽ?ध्याय"),
 ]
 
 FRONTMATTER_PATTERNS = [

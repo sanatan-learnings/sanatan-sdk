@@ -2,7 +2,7 @@
 
 import pytest
 
-from verse_sdk.cli.parse_source import _auto_discover_source_inputs
+from verse_sdk.cli.parse_source import _auto_discover_source_inputs, _detect_chapter
 
 
 def test_auto_discover_prefers_collection_file(tmp_path):
@@ -58,3 +58,8 @@ def test_auto_discover_raises_when_no_default_source_exists(tmp_path):
     assert "No source input found." in msg
     assert "data/sources/shiv-puran.txt" in msg
     assert "data/sources/shiv-puran/" in msg
+
+
+def test_detect_chapter_from_devanagari_ordinal_headings():
+    assert _detect_chapter("०.१. प्रथमोऽध्यायः । तन्महिमवर्णनम् ।") == 1
+    assert _detect_chapter("०.२. द्वितीयोऽध्यायः ।") == 2
