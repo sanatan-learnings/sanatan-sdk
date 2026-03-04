@@ -43,7 +43,7 @@ def test_idempotent(tmp_path):
 def test_creates_required_files(tmp_path):
     create_directory_structure(tmp_path)
     create_template_files(tmp_path, "my-project")
-    for f in [".env.example", "_data/collections.yml", "_data/verse-config.yml", ".gitignore", "README.md"]:
+    for f in [".env.example", "_data/collections.yml", "_data/verse-config.yml", ".gitignore", "Gemfile", "README.md"]:
         assert (tmp_path / f).exists(), f"Missing file: {f}"
 
 
@@ -82,6 +82,13 @@ def test_env_example_includes_hf_token(tmp_path):
     content = (tmp_path / ".env.example").read_text()
     assert "HF_TOKEN=" in content
     assert "https://huggingface.co/settings/tokens" in content
+
+
+def test_gemfile_includes_jekyll(tmp_path):
+    create_directory_structure(tmp_path)
+    create_template_files(tmp_path, "my-project")
+    content = (tmp_path / "Gemfile").read_text()
+    assert 'gem "jekyll"' in content
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +171,9 @@ def test_collection_next_steps_mentions_canonical_first_optional_theme_and_flow(
     assert "Set OPENAI_API_KEY (and ELEVENLABS_API_KEY if generating audio)" in out
     assert "Optional: customize theme in data/themes/shiv-puran/modern-minimalist.yml" in out
     assert "verse-generate --collection shiv-puran --verse 1 --regenerate-content" in out
+    assert "bundle install" in out
     assert "bundle exec jekyll serve" in out
+    assert out.index("bundle install") < out.index("bundle exec jekyll serve")
     assert "verse-generate --collection shiv-puran --all" in out
     assert "verse-generate --collection shiv-puran --verse 1-3" in out
     assert "verse-generate --collection shiv-puran --next" in out
