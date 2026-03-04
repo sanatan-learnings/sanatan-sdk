@@ -20,6 +20,7 @@ Usage:
 """
 
 import argparse
+import base64
 import os
 import re
 import sys
@@ -255,7 +256,7 @@ title: __PROJECT_NAME__
   {% assign cfg = pair[1] %}
   {% unless cfg.enabled %}{% continue %}{% endunless %}
   <a href="/{{ key }}/" style="display:block;text-decoration:none;color:inherit;border:1px solid #e4d8c2;border-radius:12px;padding:1rem;background:#fffdf8;">
-    <img src="/images/{{ key }}/card.svg" alt="{{ cfg.name.en | default: key }} card image" style="width:100%;height:auto;border-radius:10px;border:1px solid #ead8bc;margin-bottom:0.75rem;" />
+    <img src="/images/{{ key }}/modern-minimalist/card-page.png" onerror="this.onerror=null;this.src='/images/{{ key }}/card.png';" alt="{{ cfg.name.en | default: key }} card image" style="width:100%;height:auto;border-radius:10px;border:1px solid #ead8bc;margin-bottom:0.75rem;" />
     <div style="font-size:1.1rem;font-weight:700;">{{ cfg.name.en | default: key }}</div>
     {% if cfg.name.hi %}<div style="opacity:0.85;margin-top:0.3rem;">{{ cfg.name.hi }}</div>{% endif %}
     <div style="margin-top:0.6rem;font-size:0.9rem;">{{ cfg.total_verses | default: 0 }} verses</div>
@@ -287,7 +288,7 @@ layout: default
 <h1>{{ collection_cfg.name.en | default: collection_key }}</h1>
 {% if collection_cfg.name.hi %}<p style="font-size:1.1rem;">{{ collection_cfg.name.hi }}</p>{% endif %}
 
-<img src="/images/{{ collection_key }}/title.svg" alt="{{ collection_cfg.name.en | default: collection_key }} title" style="width:100%;max-width:960px;height:auto;border-radius:12px;border:1px solid #e4d8c2;background:#fffdf8;" />
+<img src="/images/{{ collection_key }}/modern-minimalist/title-page.png" onerror="this.onerror=null;this.src='/images/{{ collection_key }}/title.png';" alt="{{ collection_cfg.name.en | default: collection_key }} title" style="width:100%;max-width:960px;height:auto;border-radius:12px;border:1px solid #e4d8c2;background:#fffdf8;" />
 
 {% assign verse_count = 0 %}
 {% for verse in site.verses %}
@@ -339,38 +340,9 @@ collection_key: {collection_key}
 ---
 """
 
-TITLE_IMAGE_SVG_TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="{display_name} title image">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#f8ecd4"/>
-      <stop offset="55%" stop-color="#f1dcc0"/>
-      <stop offset="100%" stop-color="#e5c89e"/>
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="630" fill="url(#bg)"/>
-  <circle cx="930" cy="110" r="170" fill="#f6e6cb" opacity="0.6"/>
-  <circle cx="1040" cy="70" r="120" fill="#edd7b7" opacity="0.55"/>
-  <rect x="70" y="70" width="1060" height="490" rx="28" fill="none" stroke="#b35c1e" stroke-width="3" opacity="0.65"/>
-  <text x="600" y="320" text-anchor="middle" font-size="74" font-family="Georgia, 'Times New Roman', serif" font-weight="700" fill="#7f3f13">{display_name}</text>
-  <text x="600" y="380" text-anchor="middle" font-size="30" font-family="Georgia, 'Times New Roman', serif" fill="#8f4a19">{hi_name}</text>
-  <text x="600" y="438" text-anchor="middle" font-size="22" font-family="Georgia, 'Times New Roman', serif" fill="#8f4a19" opacity="0.85">Scaffolded title image placeholder</text>
-</svg>
-"""
-
-CARD_IMAGE_SVG_TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="{display_name} card image">
-  <defs>
-    <linearGradient id="cardBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#fcf2dd"/>
-      <stop offset="65%" stop-color="#f0d9b8"/>
-      <stop offset="100%" stop-color="#e5bf90"/>
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="675" fill="url(#cardBg)"/>
-  <rect x="56" y="56" width="1088" height="563" rx="26" fill="none" stroke="#a9541b" stroke-width="3" opacity="0.72"/>
-  <text x="600" y="330" text-anchor="middle" font-size="72" font-family="Georgia, 'Times New Roman', serif" font-weight="700" fill="#7f3f13">{display_name}</text>
-  <text x="600" y="390" text-anchor="middle" font-size="30" font-family="Georgia, 'Times New Roman', serif" fill="#8f4a19">{hi_name}</text>
-</svg>
-"""
+PNG_PLACEHOLDER_BASE64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+)
 
 EXAMPLE_THEME_YML = """name: Modern Minimalist
 description: Clean, minimal design with spiritual focus
@@ -516,27 +488,20 @@ def upsert_collection_entry(content: str, collection: str, num_verses: int) -> s
 
 
 def create_collection_image_placeholders(base_path: Path, collection: str) -> None:
-    """Create deterministic card/title image placeholders in images/<collection>/."""
+    """Create deterministic PNG placeholders in images/<collection>/."""
     images_dir = base_path / "images" / collection
     images_dir.mkdir(parents=True, exist_ok=True)
-    display_name = collection.replace("-", " ").title()
-    hi_name = to_hindi_name(collection)
+    placeholder_bytes = base64.b64decode(PNG_PLACEHOLDER_BASE64)
 
-    card_image = images_dir / "card.svg"
+    card_image = images_dir / "card.png"
     if not card_image.exists():
-        card_image.write_text(
-            CARD_IMAGE_SVG_TEMPLATE.format(display_name=display_name, hi_name=hi_name),
-            encoding="utf-8"
-        )
-        print(f"✓ Created images/{collection}/card.svg")
+        card_image.write_bytes(placeholder_bytes)
+        print(f"✓ Created images/{collection}/card.png")
 
-    title_image = images_dir / "title.svg"
+    title_image = images_dir / "title.png"
     if not title_image.exists():
-        title_image.write_text(
-            TITLE_IMAGE_SVG_TEMPLATE.format(display_name=display_name, hi_name=hi_name),
-            encoding="utf-8"
-        )
-        print(f"✓ Created images/{collection}/title.svg")
+        title_image.write_bytes(placeholder_bytes)
+        print(f"✓ Created images/{collection}/title.png")
 
 
 def create_example_collection(base_path: Path, collection: str, num_verses: int = 3) -> None:
@@ -614,6 +579,13 @@ scenes:
       Crowned head, serene yet powerful face, and upper chest centered in composition.
       Upper third shows radiant sky with golden divine light and subtle sacred patterns.
       Use saffron, gold, and spiritual blue tones with devotional atmosphere.
+  card-page:
+    title: "{collection.replace('-', ' ').title()} Card Image"
+    description: |
+      A clean, iconic devotional composition for collection listing cards.
+      Focus on symbolic visual elements associated with the collection subject.
+      Balanced framing suitable for landscape card display, warm saffron-gold palette,
+      and clear contrast for title text overlay if needed.
 """
         scenes_file.write_text(scenes_content)
         print(f"✓ Created data/scenes/{collection}.yml")
@@ -673,6 +645,10 @@ def print_collection_next_steps(collection: str, num_verses: int, additional_col
     print("   5. Generate first verse content + assets from canonical YAML:")
     print(f"      verse-generate --collection {collection} --verse 1")
     print("      (Scene descriptions can be auto-generated by verse-generate, or edited in data/scenes manually.)")
+    print("      Optional scene-driven collection images from data/scenes:")
+    print(f"      verse-images --collection {collection} --theme modern-minimalist --verse title-page")
+    print(f"      verse-images --collection {collection} --theme modern-minimalist --verse card-page")
+    print(f"      Outputs: images/{collection}/modern-minimalist/title-page.png and card-page.png")
     print(f"   6. Review/edit generated verses in _verses/{collection}/ for quality")
     print("   7. Preview locally and verify output:")
     print("      bundle install")

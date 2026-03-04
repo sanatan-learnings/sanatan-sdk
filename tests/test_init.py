@@ -169,6 +169,8 @@ def test_creates_scenes_file(tmp_path):
     assert "title-page:" in content
     assert 'title: "Hanuman Chalisa Title Page"' in content
     assert "Close-up portrait of the primary deity/subject" in content
+    assert "card-page:" in content
+    assert 'title: "Hanuman Chalisa Card Image"' in content
     assert "verse-01:" not in content
 
 
@@ -219,18 +221,13 @@ def test_creates_collection_title_image_placeholder(tmp_path):
     create_template_files(tmp_path, "test")
     create_example_collection(tmp_path, "shiv-puran", num_verses=3)
 
-    card_image = tmp_path / "images" / "shiv-puran" / "card.svg"
+    card_image = tmp_path / "images" / "shiv-puran" / "card.png"
     assert card_image.exists()
-    card_content = card_image.read_text()
-    assert "<svg" in card_content
-    assert "Shiv Puran" in card_content
+    assert card_image.stat().st_size > 0
 
-    title_image = tmp_path / "images" / "shiv-puran" / "title.svg"
+    title_image = tmp_path / "images" / "shiv-puran" / "title.png"
     assert title_image.exists()
-    title_content = title_image.read_text()
-    assert "<svg" in title_content
-    assert "Shiv Puran" in title_content
-    assert "शिव पुराण" in title_content
+    assert title_image.stat().st_size > 0
 
 
 def test_collection_layout_references_title_image(tmp_path):
@@ -238,10 +235,12 @@ def test_collection_layout_references_title_image(tmp_path):
     create_template_files(tmp_path, "test")
 
     index_content = (tmp_path / "index.md").read_text()
-    assert "/images/{{ key }}/card.svg" in index_content
+    assert "/images/{{ key }}/modern-minimalist/card-page.png" in index_content
+    assert "this.src='/images/{{ key }}/card.png'" in index_content
 
     layout = (tmp_path / "_layouts" / "collection.html").read_text()
-    assert "/images/{{ collection_key }}/title.svg" in layout
+    assert "/images/{{ collection_key }}/modern-minimalist/title-page.png" in layout
+    assert "this.src='/images/{{ collection_key }}/title.png'" in layout
     assert "verse.collection_key == collection_key" in layout
     assert "v.path contains" not in layout
 
@@ -273,6 +272,9 @@ def test_project_next_steps_with_collection_are_consolidated_and_concrete(tmp_pa
     assert "Optional: customize theme in data/themes/shiv-puran/modern-minimalist.yml" in out
     assert "verse-generate --collection shiv-puran --verse 1" in out
     assert "verse-generate --collection shiv-puran --verse 1 --regenerate-content" not in out
+    assert "verse-images --collection shiv-puran --theme modern-minimalist --verse title-page" in out
+    assert "verse-images --collection shiv-puran --theme modern-minimalist --verse card-page" in out
+    assert "Outputs: images/shiv-puran/modern-minimalist/title-page.png and card-page.png" in out
     assert "bundle install" in out
     assert "bundle exec jekyll serve" in out
     assert out.index("bundle install") < out.index("bundle exec jekyll serve")
