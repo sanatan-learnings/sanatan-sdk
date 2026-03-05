@@ -41,6 +41,8 @@ Additionally, you can regenerate AI content (transliteration, meaning, translati
 - `--embeddings` - Update vector embeddings after generation (opt-in; use `verse-embeddings` for batch updates)
 - `--theme NAME` - Image theme name (default: modern-minimalist)
 - `--verse-id ID` - Override verse identifier (e.g., chaupai_05, doha_01). Auto-detected if not specified
+- `--verbose` - Show full nested subcommand logs (including `verse-images`/`verse-audio` details)
+- `--quiet` - Minimal output (compact progress + errors)
 - `--list-collections` - List all available collections
 
 ## Examples
@@ -95,6 +97,8 @@ This automatically:
 5. Generates slow-speed audio pronunciation (0.75x)
 
 Embeddings are **not** updated by default. Run `verse-embeddings` once after batch generation.
+
+Default mode keeps nested command output concise. Use `--verbose` to inspect full internal logs.
 
 ### Batch Processing
 

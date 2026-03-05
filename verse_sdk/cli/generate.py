@@ -40,6 +40,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -73,6 +74,8 @@ load_dotenv()
 
 # Global flag for debug mode
 DEBUG_MODE = False
+VERBOSE_MODE = False
+QUIET_MODE = False
 _SCENE_SEQUENCE_WARNED_FILES = set()
 COLLECTION_OVERVIEW_VERSE_IDS = ("title-page", "card-page")
 
@@ -296,6 +299,66 @@ def operation_status(value: Optional[bool], skipped_label: str = "Skipped") -> t
     if value is False:
         return "✗", "Failed"
     return "•", skipped_label
+
+
+def _tail_lines(text: Optional[str], max_lines: int = 12) -> str:
+    """Return the last non-empty lines from command output for concise error reporting."""
+    if not text:
+        return ""
+    lines = [line for line in text.splitlines() if line.strip()]
+    if not lines:
+        return ""
+    return "\n".join(lines[-max_lines:])
+
+
+def run_subcommand(
+    cmd: List[str],
+    *,
+    step_name: str,
+    expect_output: bool = False,
+    verbose: Optional[bool] = None,
+    quiet: Optional[bool] = None,
+) -> subprocess.CompletedProcess:
+    """
+    Run nested verse-* commands with consistent verbosity control.
+
+    Default mode suppresses nested chatter while still surfacing concise errors.
+    """
+    if verbose is None:
+        verbose = VERBOSE_MODE
+    if quiet is None:
+        quiet = QUIET_MODE
+
+    if verbose and not quiet:
+        return subprocess.run(cmd, check=True, text=True)
+
+    run_kwargs = {"check": True, "text": True}
+
+    if quiet:
+        run_kwargs["stdout"] = subprocess.DEVNULL
+        run_kwargs["stderr"] = subprocess.DEVNULL
+    else:
+        # In default mode, suppress nested command chatter.
+        run_kwargs["capture_output"] = True
+
+    try:
+        result = subprocess.run(cmd, **run_kwargs)
+        if expect_output and result.stdout is None:
+            return subprocess.CompletedProcess(cmd, result.returncode, stdout="", stderr=result.stderr)
+        return result
+    except subprocess.CalledProcessError as e:
+        if quiet:
+            raise
+
+        print(f"  ✗ {step_name} failed (exit {e.returncode})", file=sys.stderr)
+        details = _tail_lines(getattr(e, "stderr", None)) or _tail_lines(getattr(e, "stdout", None))
+        if details:
+            print("  Last output:", file=sys.stderr)
+            for line in details.splitlines():
+                print(f"    {line}", file=sys.stderr)
+        if not verbose:
+            print(f"  Re-run with --verbose for full {step_name} logs.", file=sys.stderr)
+        raise
 
 
 # ==================== Progress Indicators ====================
@@ -1955,7 +2018,7 @@ def _default_collection_scene_entries(collection: str) -> Dict[str, Dict[str, st
     }
 
 
-def ensure_collection_scene_entries(collection: str, project_dir: Optional[Path] = None) -> bool:
+def ensure_collection_scene_entries(collection: str, project_dir: Optional[Path] = None, quiet: bool = False) -> bool:
     """Ensure title-page/card-page scenes exist for collection overview images."""
     if project_dir is None:
         project_dir = Path.cwd()
@@ -2011,7 +2074,8 @@ def ensure_collection_scene_entries(collection: str, project_dir: Optional[Path]
         scenes_dir.mkdir(parents=True, exist_ok=True)
         with open(scenes_file, 'w', encoding='utf-8') as f:
             yaml.safe_dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False, width=120)
-        print(f"  ✓ Ensured collection scene prompts in {scenes_file}")
+        if not quiet:
+            print(f"  ✓ Ensured collection scene prompts in {scenes_file}")
 
     return True
 
@@ -2021,12 +2085,14 @@ def ensure_collection_overview_images(
     theme: str,
     project_dir: Optional[Path] = None,
     dry_run: bool = False,
+    verbose: bool = False,
+    quiet: bool = False,
 ) -> bool:
     """Auto-generate title-page/card-page images when missing."""
     if project_dir is None:
         project_dir = Path.cwd()
 
-    ensure_collection_scene_entries(collection, project_dir)
+    ensure_collection_scene_entries(collection, project_dir, quiet=quiet)
 
     missing = []
     for verse_id in COLLECTION_OVERVIEW_VERSE_IDS:
@@ -2035,26 +2101,37 @@ def ensure_collection_overview_images(
             missing.append(verse_id)
 
     if not missing:
-        print("✓ Collection overview images already exist")
+        if verbose and not quiet:
+            print("✓ Collection overview images already exist")
         return True
 
-    print(f"→ Auto-generating collection overview images: {', '.join(missing)}")
+    if not quiet:
+        print(f"→ Auto-generating collection overview images: {', '.join(missing)}")
     if dry_run:
-        print("  ⚠ Dry run: skipping image generation commands")
+        if not quiet:
+            print("  ⚠ Dry run: skipping image generation commands")
         return True
 
     success = True
     for verse_id in missing:
-        ok = generate_image(collection, 0, theme, verse_id=verse_id)
+        ok = generate_image(collection, 0, theme, verse_id=verse_id, verbose=verbose, quiet=quiet)
         success = success and ok
     return success
 
 
-def generate_image(collection: str, verse: int, theme: str, verse_id: str = None) -> bool:
+def generate_image(
+    collection: str,
+    verse: int,
+    theme: str,
+    verse_id: str = None,
+    verbose: bool = False,
+    quiet: bool = False,
+) -> bool:
     """Generate image for the specified verse."""
-    print(f"\n{'='*60}")
-    print("GENERATING IMAGE")
-    print(f"{'='*60}\n")
+    if verbose and not quiet:
+        print(f"\n{'='*60}")
+        print("GENERATING IMAGE")
+        print(f"{'='*60}\n")
 
     # Prompts file will be created if needed by ensure_scene_description_exists
     prompts_file = Path.cwd() / "docs" / "image-prompts" / f"{collection}.md"
@@ -2063,9 +2140,8 @@ def generate_image(collection: str, verse: int, theme: str, verse_id: str = None
     if not verse_id:
         verse_id = f"verse-{verse:02d}"
 
-    print(f"✓ Collection: {collection}")
-    print(f"✓ Verse: {verse_id}")
-    print(f"✓ Theme: {theme}")
+    if not quiet:
+        print(f"→ Generating image for {verse_id} (theme: {theme})")
 
     # Run verse-images command
     verse_images_cmd = find_command("verse-images")
@@ -2076,22 +2152,32 @@ def generate_image(collection: str, verse: int, theme: str, verse_id: str = None
         "--verse", verse_id
     ]
 
-    print(f"\nRunning: {' '.join(cmd)}\n")
+    if verbose and not quiet:
+        print(f"\nRunning: {shlex.join(cmd)}\n")
 
     try:
-        result = subprocess.run(cmd, check=True)
-        print("\n✓ Image generated successfully")
+        run_subcommand(cmd, step_name="image generation", verbose=verbose, quiet=quiet)
+        if not quiet:
+            print("  ✓ Image generated")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"\n✗ Error generating image: {e}")
+        if verbose or not quiet:
+            print(f"  ✗ Error generating image: {e}", file=sys.stderr)
         return False
 
 
-def generate_audio(collection: str, verse: int, verse_id: str = None) -> bool:
+def generate_audio(
+    collection: str,
+    verse: int,
+    verse_id: str = None,
+    verbose: bool = False,
+    quiet: bool = False,
+) -> bool:
     """Generate audio for the specified verse."""
-    print(f"\n{'='*60}")
-    print("GENERATING AUDIO")
-    print(f"{'='*60}\n")
+    if verbose and not quiet:
+        print(f"\n{'='*60}")
+        print("GENERATING AUDIO")
+        print(f"{'='*60}\n")
 
     # Use provided verse_id or default to verse-{N:02d}
     if not verse_id:
@@ -2102,12 +2188,12 @@ def generate_audio(collection: str, verse: int, verse_id: str = None) -> bool:
     verse_file = verses_dir / f"{verse_id}.md"
 
     if not verse_file.exists():
-        print(f"✗ Error: Verse file not found: {verse_file}")
-        print("Please create the verse markdown file first")
+        print(f"✗ Error: Verse file not found: {verse_file}", file=sys.stderr)
+        print("Please create the verse markdown file first", file=sys.stderr)
         return False
 
-    print(f"✓ Collection: {collection}")
-    print(f"✓ Verse: {verse_id}")
+    if not quiet:
+        print(f"→ Generating audio for {verse_id}")
 
     # Run verse-audio command
     verse_audio_cmd = find_command("verse-audio")
@@ -2117,10 +2203,11 @@ def generate_audio(collection: str, verse: int, verse_id: str = None) -> bool:
         "--verse", verse_id
     ]
 
-    print(f"\nRunning: {' '.join(cmd)}\n")
+    if verbose and not quiet:
+        print(f"\nRunning: {shlex.join(cmd)}\n")
 
     try:
-        result = subprocess.run(cmd, check=True)
+        run_subcommand(cmd, step_name="audio generation", verbose=verbose, quiet=quiet)
 
         # Verify that audio files were actually created with non-zero size
         audio_dir = Path.cwd() / "audio" / collection
@@ -2129,12 +2216,12 @@ def generate_audio(collection: str, verse: int, verse_id: str = None) -> bool:
 
         # Check if files exist
         if not full_audio.exists() or not slow_audio.exists():
-            print("\n✗ Audio generation reported success but files not found:")
+            print("\n✗ Audio generation reported success but files not found:", file=sys.stderr)
             if not full_audio.exists():
-                print(f"  Missing: {full_audio}")
+                print(f"  Missing: {full_audio}", file=sys.stderr)
             if not slow_audio.exists():
-                print(f"  Missing: {slow_audio}")
-            print("\nThis may indicate an issue with the audio generation workflow.")
+                print(f"  Missing: {slow_audio}", file=sys.stderr)
+            print("\nThis may indicate an issue with the audio generation workflow.", file=sys.stderr)
             return False
 
         # Check if files have non-zero size (not corrupted/empty)
@@ -2142,24 +2229,27 @@ def generate_audio(collection: str, verse: int, verse_id: str = None) -> bool:
         slow_size = slow_audio.stat().st_size
 
         if full_size == 0 or slow_size == 0:
-            print("\n✗ Audio generation created corrupted files (0 bytes):")
+            print("\n✗ Audio generation created corrupted files (0 bytes):", file=sys.stderr)
             if full_size == 0:
-                print(f"  Corrupted: {full_audio.name} (0 bytes)")
+                print(f"  Corrupted: {full_audio.name} (0 bytes)", file=sys.stderr)
             if slow_size == 0:
-                print(f"  Corrupted: {slow_audio.name} (0 bytes)")
-            print("\nPossible causes:")
-            print("  - ElevenLabs API returned empty response")
-            print("  - Network interruption during download")
-            print("  - Insufficient disk space")
-            print("\nTry regenerating with: verse-audio --collection {collection} --verse {verse_id} --force")
+                print(f"  Corrupted: {slow_audio.name} (0 bytes)", file=sys.stderr)
+            print("\nPossible causes:", file=sys.stderr)
+            print("  - ElevenLabs API returned empty response", file=sys.stderr)
+            print("  - Network interruption during download", file=sys.stderr)
+            print("  - Insufficient disk space", file=sys.stderr)
+            print(f"\nTry regenerating with: verse-audio --collection {collection} --verse {verse_id} --force", file=sys.stderr)
             return False
 
-        print("\n✓ Audio generated successfully")
-        print(f"  ✓ {full_audio.name}")
-        print(f"  ✓ {slow_audio.name}")
+        if not quiet:
+            print("  ✓ Audio generated")
+        if verbose and not quiet:
+            print(f"  ✓ {full_audio.name}")
+            print(f"  ✓ {slow_audio.name}")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"\n✗ Error generating audio: {e}")
+        if verbose or not quiet:
+            print(f"\n✗ Error generating audio: {e}", file=sys.stderr)
         return False
 
 
@@ -2204,13 +2294,14 @@ def fetch_verse_text(collection: str, verse_id: str) -> Optional[dict]:
         return None
 
 
-def update_embeddings(collection: str) -> bool:
+def update_embeddings(collection: str, verbose: bool = False, quiet: bool = False) -> bool:
     """Update vector embeddings for the collection."""
-    print(f"\n{'='*60}")
-    print("UPDATING EMBEDDINGS")
-    print(f"{'='*60}\n")
-
-    print(f"✓ Collection: {collection}")
+    if verbose and not quiet:
+        print(f"\n{'='*60}")
+        print("UPDATING EMBEDDINGS")
+        print(f"{'='*60}\n")
+    if not quiet:
+        print(f"→ Updating embeddings for collection: {collection}")
 
     # Check if collections.yml exists
     collections_file = Path.cwd() / "_data" / "collections.yml"
@@ -2229,15 +2320,17 @@ def update_embeddings(collection: str) -> bool:
         "--output-dir", "data/embeddings/collections"
     ]
 
-    print(f"\nRunning: {' '.join(cmd)}\n")
+    if verbose and not quiet:
+        print(f"\nRunning: {shlex.join(cmd)}\n")
 
     try:
-        result = subprocess.run(cmd, check=True)
-        print("\n✓ Embeddings updated successfully")
-        print("✓ Output: data/embeddings/collections")
+        run_subcommand(cmd, step_name="embeddings update", verbose=verbose, quiet=quiet)
+        if not quiet:
+            print("  ✓ Embeddings updated")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"\n✗ Error updating embeddings: {e}")
+        if verbose or not quiet:
+            print(f"\n✗ Error updating embeddings: {e}", file=sys.stderr)
         return False
 
 
@@ -2321,6 +2414,12 @@ Examples:
 
   # Generate image + audio + embeddings
   verse-generate --collection hanuman-chalisa --verse 15 --embeddings
+
+  # Show full nested command output
+  verse-generate --collection hanuman-chalisa --verse 15 --verbose
+
+  # Minimal output (errors + final summary)
+  verse-generate --collection hanuman-chalisa --verse 15 --quiet
 
   # Generate only image
   verse-generate --collection sundar-kaand --verse 3 --image
@@ -2588,12 +2687,25 @@ Environment Variables:
         action="store_true",
         help="Show full error tracebacks and debug information"
     )
+    verbosity_group = parser.add_mutually_exclusive_group()
+    verbosity_group.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show full nested subcommand logs (verse-images/verse-audio/verse-embeddings)"
+    )
+    verbosity_group.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Reduce output to minimal progress and errors"
+    )
 
     args = parser.parse_args()
 
     # Set global debug mode
-    global DEBUG_MODE
+    global DEBUG_MODE, VERBOSE_MODE, QUIET_MODE
     DEBUG_MODE = args.debug
+    VERBOSE_MODE = args.verbose
+    QUIET_MODE = args.quiet
 
     # Handle list collections
     if args.list_collections:
@@ -2670,6 +2782,8 @@ Environment Variables:
         print("  --embeddings : Update vector embeddings")
         print("  --regenerate-content : Regenerate AI text content")
         print("  --theme <name> : Use a specific theme (default: modern-minimalist)")
+        print("  --verbose  : Show full nested subcommand logs")
+        print("  --quiet    : Minimal output")
         print()
         print("Flags can be combined:")
         print("  --image --audio              : Generate image and audio")
@@ -2857,6 +2971,8 @@ Environment Variables:
             args.theme,
             project_dir=Path.cwd(),
             dry_run=args.dry_run,
+            verbose=args.verbose,
+            quiet=args.quiet,
         )
         if not overview_ok:
             print("⚠ Warning: Failed to generate collection overview images (title/card).")
@@ -3050,14 +3166,27 @@ Environment Variables:
                     )
 
                     if scene_ready:
-                        results['image'] = generate_image(args.collection, verse_position, args.theme, verse_id)
+                        results['image'] = generate_image(
+                            args.collection,
+                            verse_position,
+                            args.theme,
+                            verse_id,
+                            verbose=args.verbose,
+                            quiet=args.quiet,
+                        )
                     else:
                         print("  ✗ Failed to prepare scene description", file=sys.stderr)
                         results['image'] = False
 
             # Step 3: Generate audio
             if generate_audio_flag:
-                results['audio'] = generate_audio(args.collection, verse_position, verse_id)
+                results['audio'] = generate_audio(
+                    args.collection,
+                    verse_position,
+                    verse_id,
+                    verbose=args.verbose,
+                    quiet=args.quiet,
+                )
 
             # Step 4: Generate Puranic context
             if puranic_context_flag:
@@ -3070,7 +3199,11 @@ Environment Variables:
             if update_embeddings_flag:
                 # For batch operations, only update embeddings after all verses
                 if len(verse_numbers) == 1 or idx == len(verse_numbers):
-                    results['embeddings'] = update_embeddings(args.collection)
+                    results['embeddings'] = update_embeddings(
+                        args.collection,
+                        verbose=args.verbose,
+                        quiet=args.quiet,
+                    )
                 else:
                     results['embeddings'] = None  # Will update at the end
 

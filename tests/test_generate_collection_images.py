@@ -36,8 +36,8 @@ def test_ensure_collection_overview_images_only_generates_missing(tmp_path, monk
 
     calls = []
 
-    def _fake_generate_image(collection, verse, theme, verse_id=None):
-        calls.append((collection, verse, theme, verse_id))
+    def _fake_generate_image(collection, verse, theme, verse_id=None, verbose=False, quiet=False):
+        calls.append((collection, verse, theme, verse_id, verbose, quiet))
         return True
 
     monkeypatch.setattr("verse_sdk.cli.generate.generate_image", _fake_generate_image)
@@ -50,14 +50,14 @@ def test_ensure_collection_overview_images_only_generates_missing(tmp_path, monk
     )
 
     assert ok is True
-    assert calls == [("shiv-puran", 0, "modern-minimalist", "card-page")]
+    assert calls == [("shiv-puran", 0, "modern-minimalist", "card-page", False, False)]
 
 
 def test_ensure_collection_overview_images_dry_run_does_not_call_generator(tmp_path, monkeypatch):
     calls = []
 
-    def _fake_generate_image(collection, verse, theme, verse_id=None):
-        calls.append((collection, verse, theme, verse_id))
+    def _fake_generate_image(collection, verse, theme, verse_id=None, verbose=False, quiet=False):
+        calls.append((collection, verse, theme, verse_id, verbose, quiet))
         return True
 
     monkeypatch.setattr("verse_sdk.cli.generate.generate_image", _fake_generate_image)
