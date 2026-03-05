@@ -43,6 +43,7 @@ Additionally, you can regenerate AI content (transliteration, meaning, translati
 - `--verse-id ID` - Override verse identifier (e.g., chaupai_05, doha_01). Auto-detected if not specified
 - `--verbose` - Show full nested subcommand logs (including `verse-images`/`verse-audio` details)
 - `--quiet` - Minimal output (compact progress + errors)
+- `--generate-overview-images` - Force title/card overview image check on this run (default auto-check only when verse 1 is included)
 - `--list-collections` - List all available collections
 
 ## Examples
@@ -99,6 +100,7 @@ This automatically:
 Embeddings are **not** updated by default. Run `verse-embeddings` once after batch generation.
 
 Default mode keeps nested command output concise. Use `--verbose` to inspect full internal logs.
+Collection `title-page` / `card-page` auto-check runs only for first-verse flows (when verse position 1 is in scope), unless `--generate-overview-images` is explicitly passed.
 
 ### Batch Processing
 

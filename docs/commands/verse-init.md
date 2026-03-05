@@ -180,7 +180,9 @@ verse-validate
 # 5. Generate first verse
 verse-generate --collection hanuman-chalisa --verse 1
 
-# 6. Then generate collection title/card images explicitly (quick validation)
+#    title/card images are auto-generated in this first-verse flow when OPENAI_API_KEY is available
+
+# 6. Optional: validate or re-generate collection title/card images
 verse-images --verse title-page
 verse-images --verse card-page
 # Fallback when collection/theme is ambiguous:
@@ -206,7 +208,9 @@ verse-validate
 # 5. Generate first verse
 verse-generate --collection sundar-kaand --verse 1
 
-# 6. Then generate collection title/card images explicitly (quick validation)
+#    title/card images are auto-generated in this first-verse flow when OPENAI_API_KEY is available
+
+# 6. Optional: validate or re-generate collection title/card images
 verse-images --verse title-page
 verse-images --verse card-page
 # Fallback when collection/theme is ambiguous:

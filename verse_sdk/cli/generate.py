@@ -301,6 +301,22 @@ def operation_status(value: Optional[bool], skipped_label: str = "Skipped") -> t
     return "•", skipped_label
 
 
+def should_auto_generate_collection_overview_images(
+    verse_numbers: List[int],
+    explicit: bool = False,
+) -> bool:
+    """
+    Auto-generate title/card overview images only on first-verse flows by default.
+
+    Rules:
+    - Always run when explicitly requested.
+    - Otherwise run only when the requested generation includes verse position 1.
+    """
+    if explicit:
+        return True
+    return bool(verse_numbers and 1 in verse_numbers)
+
+
 def _tail_lines(text: Optional[str], max_lines: int = 12) -> str:
     """Return the last non-empty lines from command output for concise error reporting."""
     if not text:
@@ -2421,6 +2437,9 @@ Examples:
   # Minimal output (errors + final summary)
   verse-generate --collection hanuman-chalisa --verse 15 --quiet
 
+  # Explicitly check/generate title-page + card-page on non-verse-1 runs
+  verse-generate --collection hanuman-chalisa --verse 20 --image --generate-overview-images
+
   # Generate only image
   verse-generate --collection sundar-kaand --verse 3 --image
 
@@ -2639,6 +2658,11 @@ Environment Variables:
         default="modern-minimalist",
         help="Theme name for image generation (default: modern-minimalist)",
         metavar="NAME"
+    )
+    parser.add_argument(
+        "--generate-overview-images",
+        action="store_true",
+        help="Force title/card overview image check for this run (default auto-check only when verse 1 is included)"
     )
 
     # Verse ID override (for non-numeric verse identifiers)
@@ -2961,7 +2985,12 @@ Environment Variables:
     print("="*60)
     print()
 
-    if generate_image_flag:
+    overview_check_required = generate_image_flag and should_auto_generate_collection_overview_images(
+        verse_numbers,
+        explicit=args.generate_overview_images,
+    )
+
+    if overview_check_required:
         print("="*60)
         print("COLLECTION OVERVIEW IMAGE CHECK")
         print("="*60)
@@ -2976,6 +3005,10 @@ Environment Variables:
         )
         if not overview_ok:
             print("⚠ Warning: Failed to generate collection overview images (title/card).")
+        print()
+    elif args.verbose and generate_image_flag and not args.quiet:
+        print("Skipping collection overview image check (only auto-run for verse 1).")
+        print("Use --generate-overview-images to run it explicitly.")
         print()
 
     # Track overall success across all verses

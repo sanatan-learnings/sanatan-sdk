@@ -408,12 +408,12 @@ def test_project_next_steps_with_collection_are_consolidated_and_concrete(tmp_pa
     assert "Optional: customize theme in data/themes/shiv-puran/modern-minimalist.yml" in out
     assert "verse-generate --collection shiv-puran --verse 1" in out
     assert "verse-generate --collection shiv-puran --verse 1 --regenerate-content" not in out
-    assert "6. Then generate collection title/card images explicitly (quick validation):" in out
+    assert "6. Optional: validate or re-generate collection title/card images:" in out
     assert "verse-images --verse title-page" in out
     assert "verse-images --verse card-page" in out
     assert "verse-images --collection shiv-puran --theme modern-minimalist --verse title-page" in out
     assert "verse-images --collection shiv-puran --theme modern-minimalist --verse card-page" in out
-    assert "Collection title/card images are generated when OPENAI_API_KEY is available; otherwise they remain pending." in out
+    assert "Collection title/card images are auto-generated in this first-verse flow when OPENAI_API_KEY is available." in out
     assert "bundle install" in out
     assert "bundle exec jekyll serve" in out
     assert out.index("bundle install") < out.index("bundle exec jekyll serve")
