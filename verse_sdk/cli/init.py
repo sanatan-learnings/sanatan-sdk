@@ -301,9 +301,13 @@ layout: default
 {% assign collection_cfg = site.data.collections[collection_key] %}
 {% assign verse_defaults = site.data["verse-config"].defaults %}
 {% assign theme_name = collection_cfg.image_theme | default: collection_cfg.theme | default: collection_cfg.default_theme | default: verse_defaults.image_theme | default: verse_defaults.theme | default: verse_defaults.default_theme | default: 'modern-minimalist' %}
+{% assign collection_name_en = collection_cfg.name.en | default: collection_cfg.name_en | default: collection_key %}
+{% assign collection_name_hi = collection_cfg.name.hi | default: collection_cfg.name_hi %}
 
-<h1>{{ collection_cfg.name.en | default: collection_key }}</h1>
-{% if collection_cfg.name.hi %}<p>{{ collection_cfg.name.hi }}</p>{% endif %}
+<h1>
+  <span data-lang="en">{{ collection_name_en }}</span>
+  <span data-lang="hi">{{ collection_name_hi | default: collection_name_en }}</span>
+</h1>
 
 <img class="collection-hero-image" src="/images/{{ collection_key }}/{{ theme_name }}/title-page.png" alt="{{ collection_cfg.name.en | default: collection_key }} title" />
 
@@ -314,25 +318,39 @@ layout: default
   {% endif %}
 {% endfor %}
 <p>Total verses: {{ collection_cfg.total_verses | default: verse_count }}</p>
-<div class="button-row">
-  <a class="button" href="/">Back to Home</a>
-  <a class="button secondary" href="https://github.com/sanatan-learnings/sanatan-verse-sdk/blob/main/docs/end-to-end-workflow.md">Workflow Guide</a>
-</div>
 
-<ul class="verse-list">
+<div class="verse-list card-grid">
 {% assign listed = false %}
 {% for verse in site.verses %}
   {% if verse.collection_key == collection_key %}
     {% assign listed = true %}
-  <li>
-    <a href="{{ verse.url }}">{{ verse.verse_id | default: verse.title | default: verse.basename }}</a>
-  </li>
+  {% assign verse_label = verse.verse_id | default: verse.title | default: verse.basename %}
+  {% assign verse_image = '/images/' | append: collection_key | append: '/' | append: theme_name | append: '/' | append: verse.verse_id | append: '.png' %}
+  {% assign has_verse_image = false %}
+  {% for static_file in site.static_files %}
+    {% if static_file.path == verse_image %}
+      {% assign has_verse_image = true %}
+      {% break %}
+    {% endif %}
+  {% endfor %}
+  <a class="card verse-card" href="{{ verse.url }}">
+    {% if has_verse_image %}
+    <img src="{{ verse_image }}" alt="{{ verse_label }} image" loading="lazy" />
+    {% endif %}
+    <div class="card-title">{{ verse_label }}</div>
+    {% if verse.title_en or verse.title_hi %}
+    <div class="card-subtitle">
+      <span data-lang="en">{{ verse.title_en | default: verse.title | default: verse_label }}</span>
+      <span data-lang="hi">{{ verse.title_hi | default: verse_label }}</span>
+    </div>
+    {% endif %}
+  </a>
   {% endif %}
 {% endfor %}
 {% unless listed %}
-  <li>No verses generated yet for this collection.</li>
+  <div class="card-subtitle">No verses generated yet for this collection.</div>
 {% endunless %}
-</ul>
+</div>
 """
 
 VERSE_LAYOUT_TEMPLATE = """---

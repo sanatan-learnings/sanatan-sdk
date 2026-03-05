@@ -325,6 +325,13 @@ def test_collection_layout_references_title_image(tmp_path):
     assert "/images/{{ collection_key }}/{{ theme_name }}/title-page.png" in layout
     assert "this.src='/images/{{ collection_key }}/title.png'" not in layout
     assert "verse.collection_key == collection_key" in layout
+    assert "<span data-lang=\"en\">{{ collection_name_en }}</span>" in layout
+    assert "<span data-lang=\"hi\">{{ collection_name_hi | default: collection_name_en }}</span>" in layout
+    assert "Back to Home" not in layout
+    assert "Workflow Guide" not in layout
+    assert "class=\"card verse-card\"" in layout
+    assert "site.static_files" in layout
+    assert "{{ verse.verse_id | default: verse.title | default: verse.basename }}" not in layout
     assert "v.path contains" not in layout
 
 
