@@ -1,19 +1,16 @@
 """Tests for verse_sdk/cli/init.py — project scaffolding."""
 
-from pathlib import Path
-
 import subprocess
+from pathlib import Path
 
 from verse_sdk.cli.init import (
     create_directory_structure,
     create_example_collection,
     create_template_files,
     init_project,
+    main as init_main,
     normalize_repo_url,
     resolve_collection_theme,
-)
-from verse_sdk.cli.init import (
-    main as init_main,
 )
 
 # ---------------------------------------------------------------------------
